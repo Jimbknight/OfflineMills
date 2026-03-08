@@ -1,0 +1,4 @@
+com.Bobr.mill.test.app-updated_navigation_xml-0 C:\Users\bstep\AndroidStudioProjects\MillbyBobr\app\build\generated\updated_navigation_xml\debugAndroidTest
+com.Bobr.mill.test.app-packageDebugAndroidTestResources-1 C:\Users\bstep\AndroidStudioProjects\MillbyBobr\app\build\intermediates\incremental\debugAndroidTest\packageDebugAndroidTestResources\merged.dir
+com.Bobr.mill.test.app-packageDebugAndroidTestResources-2 C:\Users\bstep\AndroidStudioProjects\MillbyBobr\app\build\intermediates\incremental\debugAndroidTest\packageDebugAndroidTestResources\stripped.dir
+com.Bobr.mill.test.app-debugAndroidTest-3 C:\Users\bstep\AndroidStudioProjects\MillbyBobr\app\build\intermediates\merged_res\debugAndroidTest\mergeDebugAndroidTestResources
