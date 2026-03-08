@@ -4,24 +4,7 @@
             "outputFile": "com.Bobr.mill.test.app-mergeDebugAndroidTestResources-33:/values-ko/values-ko.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\bstep\\.gradle\\caches\\9.3.1\\transforms\\4b1457325be455ca411b3ec71ffd5e58\\workspace\\transformed\\core-1.13.1\\res\\values-ko\\values-ko.xml",
-                    "from": {
-                        "startLines": "2,3,4,5,6,7,8,9",
-                        "startColumns": "4,4,4,4,4,4,4,4",
-                        "startOffsets": "55,147,247,341,438,534,632,732",
-                        "endColumns": "91,99,93,96,95,97,99,100",
-                        "endOffsets": "142,242,336,433,529,627,727,828"
-                    },
-                    "to": {
-                        "startLines": "2,3,4,5,6,7,8,24",
-                        "startColumns": "4,4,4,4,4,4,4,4",
-                        "startOffsets": "105,197,297,391,488,584,682,1944",
-                        "endColumns": "91,99,93,96,95,97,99,100",
-                        "endOffsets": "192,292,386,483,579,677,777,2040"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\bstep\\.gradle\\caches\\9.3.1\\transforms\\0afaa084b9fb2ec38250e01c75e58bfc\\workspace\\transformed\\ui-release\\res\\values-ko\\values-ko.xml",
+                    "source": "C:\\Users\\Bernhard\\.gradle\\caches\\9.3.1\\transforms\\0afaa084b9fb2ec38250e01c75e58bfc\\workspace\\transformed\\ui-release\\res\\values-ko\\values-ko.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -35,6 +18,23 @@
                         "startOffsets": "782,861,937,1025,1115,1195,1270,1349,1428,1507,1580,1656,1724,1800,1874,2045,2119,2183",
                         "endColumns": "78,75,87,89,79,74,78,78,78,72,75,67,75,73,69,73,63,113",
                         "endOffsets": "856,932,1020,1110,1190,1265,1344,1423,1502,1575,1651,1719,1795,1869,1939,2114,2178,2292"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Bernhard\\.gradle\\caches\\9.3.1\\transforms\\4b1457325be455ca411b3ec71ffd5e58\\workspace\\transformed\\core-1.13.1\\res\\values-ko\\values-ko.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,147,247,341,438,534,632,732",
+                        "endColumns": "91,99,93,96,95,97,99,100",
+                        "endOffsets": "142,242,336,433,529,627,727,828"
+                    },
+                    "to": {
+                        "startLines": "2,3,4,5,6,7,8,24",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "105,197,297,391,488,584,682,1944",
+                        "endColumns": "91,99,93,96,95,97,99,100",
+                        "endOffsets": "192,292,386,483,579,677,777,2040"
                     }
                 }
             ]
