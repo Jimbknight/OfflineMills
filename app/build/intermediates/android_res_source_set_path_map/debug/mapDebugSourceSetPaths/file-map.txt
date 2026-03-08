@@ -1,7 +1,7 @@
-com.Bobr.mill.app-pngs-0 C:\Users\bstep\AndroidStudioProjects\MillbyBobr\app\build\generated\res\pngs\debug
-com.Bobr.mill.app-updated_navigation_xml-1 C:\Users\bstep\AndroidStudioProjects\MillbyBobr\app\build\generated\updated_navigation_xml\debug
-com.Bobr.mill.app-packageDebugResources-2 C:\Users\bstep\AndroidStudioProjects\MillbyBobr\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
-com.Bobr.mill.app-packageDebugResources-3 C:\Users\bstep\AndroidStudioProjects\MillbyBobr\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
-com.Bobr.mill.app-debug-4 C:\Users\bstep\AndroidStudioProjects\MillbyBobr\app\build\intermediates\merged_res\debug\mergeDebugResources
-com.Bobr.mill.app-debug-5 C:\Users\bstep\AndroidStudioProjects\MillbyBobr\app\src\debug\res
-com.Bobr.mill.app-main-6 C:\Users\bstep\AndroidStudioProjects\MillbyBobr\app\src\main\res
+com.Bobr.mill.app-pngs-0 D:\Projekte\OfflineMills\OfflineMills\app\build\generated\res\pngs\debug
+com.Bobr.mill.app-updated_navigation_xml-1 D:\Projekte\OfflineMills\OfflineMills\app\build\generated\updated_navigation_xml\debug
+com.Bobr.mill.app-packageDebugResources-2 D:\Projekte\OfflineMills\OfflineMills\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+com.Bobr.mill.app-packageDebugResources-3 D:\Projekte\OfflineMills\OfflineMills\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+com.Bobr.mill.app-debug-4 D:\Projekte\OfflineMills\OfflineMills\app\build\intermediates\merged_res\debug\mergeDebugResources
+com.Bobr.mill.app-debug-5 D:\Projekte\OfflineMills\OfflineMills\app\src\debug\res
+com.Bobr.mill.app-main-6 D:\Projekte\OfflineMills\OfflineMills\app\src\main\res

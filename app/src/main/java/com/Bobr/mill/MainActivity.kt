@@ -8,8 +8,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.Bobr.mill.data.network.DiscoveredGame
@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
             var statusMessage by remember { mutableStateOf("") }
             var discoveredGames by remember { mutableStateOf<List<DiscoveredGame>>(emptyList()) }
 
-            // ZOMBIE-STATE FIX: Wenn isConnected auf false wechselt, Brett sauber auf 0 setzen!
+            // Whenever we disconnect or leave the game screen, ensure the board is wiped clean
             LaunchedEffect(isConnected) {
                 if (!isConnected) {
                     viewModel.onEvent(GameEvent.OnResetClicked)
@@ -48,7 +48,14 @@ class MainActivity : ComponentActivity() {
                         isConnected = connected
                         statusMessage = message
                     },
-                    onMoveReceived = { viewModel.onEvent(GameEvent.OnNetworkMoveReceived(it)) },
+                    onMoveReceived = { receivedMove ->
+                        // NEW: Check for the magic "-1" rematch code
+                        if (receivedMove == -1) {
+                            viewModel.onEvent(GameEvent.OnResetClicked)
+                        } else {
+                            viewModel.onEvent(GameEvent.OnNetworkMoveReceived(receivedMove))
+                        }
+                    },
                     onRoleAssigned = { isPlayerOne ->
                         val role = if (isPlayerOne) Player.PLAYER_ONE else Player.PLAYER_TWO
                         viewModel.setLocalRole(role)
@@ -57,7 +64,7 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            // Berechtigungen...
+            // Permissions handling for Nearby Connections
             val permissionsToRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_ADVERTISE, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.NEARBY_WIFI_DEVICES, Manifest.permission.ACCESS_FINE_LOCATION)
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -80,11 +87,19 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             onQuitGame = {
-                                // Wenn der Rote Button gedrückt wird:
                                 if (!viewModel.isLocalMode) {
-                                    nearbyManager?.disconnect() // Schmeißt den anderen Spieler raus
+                                    nearbyManager?.disconnect()
                                 }
-                                isConnected = false // Wechselt zum Menü & triggert den Reset!
+                                isConnected = false
+                            },
+                            onRematchRequested = {
+                                // 1. Reset our own local board immediately
+                                viewModel.onEvent(GameEvent.OnResetClicked)
+
+                                // 2. Send the special "-1" code to the opponent to reset their board
+                                if (!viewModel.isLocalMode) {
+                                    nearbyManager?.sendMove(-1)
+                                }
                             }
                         )
                     } else {

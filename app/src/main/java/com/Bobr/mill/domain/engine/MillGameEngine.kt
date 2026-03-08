@@ -43,7 +43,7 @@ class MillGameEngine {
 
     private fun handleMovement(state: GameState, index: Int): GameState {
         if (state.board[index] == state.currentTurn) {
-            return state.copy(selectedPieceIndex = index, infoMessage = "Stein gewählt. Tippe auf ein leeres Feld.")
+            return state.copy(selectedPieceIndex = index, infoMessage = "Piece selected. Tap an empty spot.")
         }
 
         val selectedIndex = state.selectedPieceIndex ?: return state
@@ -78,7 +78,7 @@ class MillGameEngine {
                 .all { isPartOfMill(state.board, it, opponent) }
 
             if (!allOpponentPiecesInMills) {
-                return state.copy(infoMessage = "Du kannst keine Mühle brechen, wenn andere Steine frei sind!")
+                return state.copy(infoMessage = "Cannot break a mill if other pieces are free!")
             }
         }
 
@@ -91,12 +91,11 @@ class MillGameEngine {
         val opponentUnplaced = if (opponent == Player.PLAYER_ONE) state.unplacedPiecesPlayerOne else state.unplacedPiecesPlayerTwo
         val opponentOnBoard = if (opponent == Player.PLAYER_ONE) onBoardP1 else onBoardP2
 
-        // Check 1: Hat der Gegner weniger als 3 Steine? (Und Plazierungsphase ist vorbei)
         if (opponentUnplaced == 0 && opponentOnBoard < 3) {
             return state.copy(
                 board = newBoard, piecesOnBoardPlayerOne = onBoardP1, piecesOnBoardPlayerTwo = onBoardP2,
                 currentPhase = Phase.GAME_OVER,
-                infoMessage = "Spielende! ${if (state.currentTurn == Player.PLAYER_ONE) "Weiß" else "Schwarz"} gewinnt!"
+                infoMessage = "Game Over! ${if (state.currentTurn == Player.PLAYER_ONE) "White" else "Black"} wins!"
             )
         }
 
@@ -105,11 +104,10 @@ class MillGameEngine {
             currentTurn = opponent
         )
 
-        // Check 2: Ist der Gegner jetzt blockiert?
         if (isPlayerTrapped(nextState, opponent)) {
             return nextState.copy(
                 currentPhase = Phase.GAME_OVER, currentTurn = state.currentTurn,
-                infoMessage = "Spielende! ${if (state.currentTurn == Player.PLAYER_ONE) "Weiß" else "Schwarz"} gewinnt (Gegner blockiert)!"
+                infoMessage = "Game Over! ${if (state.currentTurn == Player.PLAYER_ONE) "White" else "Black"} wins (Opponent trapped)!"
             )
         }
 
@@ -118,17 +116,16 @@ class MillGameEngine {
 
     private fun checkMillAndEndTurn(state: GameState, lastMovedIndex: Int): GameState {
         if (isPartOfMill(state.board, lastMovedIndex, state.currentTurn)) {
-            return state.copy(currentPhase = Phase.REMOVING, infoMessage = "Mühle! Entferne einen Stein.")
+            return state.copy(currentPhase = Phase.REMOVING, infoMessage = "Mill! Remove an opponent's piece.")
         }
 
         val opponent = state.currentTurn.opponent()
         val nextState = state.copy(currentTurn = opponent)
 
-        // Check: Ist der nächste Spieler blockiert?
         if (isPlayerTrapped(nextState, opponent)) {
             return nextState.copy(
                 currentPhase = Phase.GAME_OVER, currentTurn = state.currentTurn,
-                infoMessage = "Spielende! ${if (state.currentTurn == Player.PLAYER_ONE) "Weiß" else "Schwarz"} gewinnt (Gegner blockiert)!"
+                infoMessage = "Game Over! ${if (state.currentTurn == Player.PLAYER_ONE) "White" else "Black"} wins (Opponent trapped)!"
             )
         }
 
@@ -141,23 +138,21 @@ class MillGameEngine {
         }
     }
 
-    // NEU: Die Blockade-Prüfung
     private fun isPlayerTrapped(state: GameState, playerToCheck: Player): Boolean {
         val unplaced = if (playerToCheck == Player.PLAYER_ONE) state.unplacedPiecesPlayerOne else state.unplacedPiecesPlayerTwo
         val onBoard = if (playerToCheck == Player.PLAYER_ONE) state.piecesOnBoardPlayerOne else state.piecesOnBoardPlayerTwo
 
-        if (unplaced > 0) return false // Kann noch setzen
-        if (onBoard <= 3) return false // Kann fliegen (oder hat schon verloren)
+        if (unplaced > 0) return false
+        if (onBoard <= 3) return false
 
-        // Prüfen, ob IRGENDEIN Stein dieses Spielers ein leeres Nachbarfeld hat
         val playerPieces = state.board.indices.filter { state.board[it] == playerToCheck }
         for (index in playerPieces) {
             val adjacent = BoardDefinitions.adjacencyMap[index] ?: emptyList()
             if (adjacent.any { state.board[it] == Player.NONE }) {
-                return false // Es gibt noch einen gültigen Zug
+                return false
             }
         }
-        return true // Keine Züge mehr möglich = Eingezwickt!
+        return true
     }
 
     private fun determineNextPhase(state: GameState): GameState {
@@ -170,6 +165,6 @@ class MillGameEngine {
             else -> Phase.MOVING
         }
 
-        return state.copy(currentPhase = newPhase, infoMessage = "${if (state.currentTurn == Player.PLAYER_ONE) "Weiß" else "Schwarz"} ist am Zug.")
+        return state.copy(currentPhase = newPhase, infoMessage = "${if (state.currentTurn == Player.PLAYER_ONE) "White's" else "Black's"} turn.")
     }
 }
