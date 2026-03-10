@@ -3,7 +3,6 @@ package com.Bobr.mill.data.network
 import android.content.Context
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.*
-import kotlinx.coroutines.*
 import java.nio.ByteBuffer
 
 data class DiscoveredGame(val endpointId: String, val hostName: String)
@@ -13,7 +12,8 @@ class NearbyConnectionsManager(
     private val onConnectionStatusChanged: (Boolean, String) -> Unit,
     private val onMoveReceived: (Int) -> Unit,
     private val onRoleAssigned: (Boolean) -> Unit,
-    private val onGamesDiscovered: (List<DiscoveredGame>) -> Unit
+    private val onGamesDiscovered: (List<DiscoveredGame>) -> Unit,
+    private val onOpponentNameReceived: (String) -> Unit // NEU: Sendet den Namen an die MainActivity
 ) {
     private val connectionsClient = Nearby.getConnectionsClient(context)
     private val strategy = Strategy.P2P_STAR
@@ -25,9 +25,8 @@ class NearbyConnectionsManager(
 
     private val discoveredGamesMap = mutableMapOf<String, String>()
 
-    // --- NEU FÜR POLLING ---
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private var pollingJob: Job? = null
+    // Merkt sich, ob WIR den Disconnect ausgelöst haben
+    private var isDisconnectingLocally = false
 
     // --- 1. DATEN EMPFANGEN ---
     private val payloadCallback = object : PayloadCallback() {
@@ -47,12 +46,14 @@ class NearbyConnectionsManager(
     // --- 2. VERBINDUNGSAUFBAU ---
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, info: ConnectionInfo) {
+            // NEU: Sobald der Handshake beginnt, schicken wir den echten Namen des Gegners raus
+            onOpponentNameReceived(info.endpointName)
+
             connectionsClient.acceptConnection(endpointId, payloadCallback)
         }
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
             if (result.status.isSuccess) {
-                pollingJob?.cancel() // Polling stoppen bei Erfolg
                 opponentEndpointId = endpointId
                 onConnectionStatusChanged(true, "Connected!")
 
@@ -65,19 +66,24 @@ class NearbyConnectionsManager(
                     sendMove(clientColorCode)
                 }
             } else {
-                onConnectionStatusChanged(false, "Connection failed.")
+                discoveredGamesMap.remove(endpointId)
+                updateDiscoveredGamesList()
+                onConnectionStatusChanged(false, "Game no longer available.")
             }
         }
 
         override fun onDisconnected(endpointId: String) {
             opponentEndpointId = null
-            onConnectionStatusChanged(false, "Opponent disconnected.")
+            // Nur meckern, wenn der Gegner wirklich abgehauen ist!
+            if (!isDisconnectingLocally) {
+                onConnectionStatusChanged(false, "Opponent disconnected.")
+            }
+            isDisconnectingLocally = false // Wieder zurücksetzen
         }
     }
 
     // --- 3. SPIEL HOSTEN ---
     fun startHosting(userName: String, isWhite: Boolean) {
-        pollingJob?.cancel() // Sicherstellen, dass Polling beim Hosten aus ist
         isHosting = true
         hostPlaysWhite = isWhite
         onConnectionStatusChanged(false, "Hosting game... Waiting for players.")
@@ -90,7 +96,7 @@ class NearbyConnectionsManager(
         }
     }
 
-    // --- 4. SPIEL SUCHEN (MIT POLLING) ---
+    // --- 4. SPIEL SUCHEN ---
     private val endpointDiscoveryCallback = object : EndpointDiscoveryCallback() {
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
             discoveredGamesMap[endpointId] = info.endpointName
@@ -105,38 +111,31 @@ class NearbyConnectionsManager(
 
     fun startDiscovering() {
         isHosting = false
+        discoveredGamesMap.clear()
+        updateDiscoveredGamesList()
         onConnectionStatusChanged(false, "Discovering games...")
 
-        // Polling-Schleife: Alle 5 Sekunden Liste leeren und Suche neu starten
-        pollingJob?.cancel()
-        pollingJob = scope.launch {
-            while (isActive) {
-                discoveredGamesMap.clear()
-                updateDiscoveredGamesList()
+        connectionsClient.stopDiscovery()
 
-                connectionsClient.stopDiscovery()
-                val options = DiscoveryOptions.Builder().setStrategy(strategy).build()
-                connectionsClient.startDiscovery(
-                    serviceId, endpointDiscoveryCallback, options
-                ).addOnFailureListener {
-                    onConnectionStatusChanged(false, "Failed to discover games.")
-                }
-
-                delay(5000) // 5 Sekunden warten, bevor die Liste aktualisiert wird
-            }
+        val options = DiscoveryOptions.Builder().setStrategy(strategy).build()
+        connectionsClient.startDiscovery(
+            serviceId, endpointDiscoveryCallback, options
+        ).addOnFailureListener {
+            onConnectionStatusChanged(false, "Failed to discover games.")
         }
     }
 
     // --- 5. SPIEL BEITRETEN ---
     fun joinGame(endpointId: String, userName: String) {
-        pollingJob?.cancel() // WICHTIG: Suche stoppen, während wir verbinden!
         connectionsClient.stopDiscovery()
         onConnectionStatusChanged(false, "Connecting to host...")
 
         connectionsClient.requestConnection(
             userName, endpointId, connectionLifecycleCallback
         ).addOnFailureListener {
-            onConnectionStatusChanged(false, "Failed to send connection request.")
+            discoveredGamesMap.remove(endpointId)
+            updateDiscoveredGamesList()
+            onConnectionStatusChanged(false, "Game is no longer available.")
         }
     }
 
@@ -154,16 +153,22 @@ class NearbyConnectionsManager(
     }
 
     fun cancel() {
-        pollingJob?.cancel()
         connectionsClient.stopAdvertising()
         connectionsClient.stopDiscovery()
+        // Alte Lobby-Liste knallhart leeren!
+        discoveredGamesMap.clear()
+        updateDiscoveredGamesList()
         onConnectionStatusChanged(false, "")
     }
 
     fun disconnect() {
-        pollingJob?.cancel()
+        isDisconnectingLocally = true // Wir sagen der App: WIR gehen jetzt!
         connectionsClient.stopAllEndpoints()
         opponentEndpointId = null
         isHosting = false
+        // Alte Lobby-Liste auch beim Disconnect leeren!
+        discoveredGamesMap.clear()
+        updateDiscoveredGamesList()
+        onConnectionStatusChanged(false, "")
     }
 }

@@ -1,6 +1,7 @@
 package com.Bobr.mill.ui.screens
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -18,7 +19,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.Color
@@ -41,6 +41,7 @@ import com.Bobr.mill.domain.models.Phase
 import com.Bobr.mill.domain.models.Player
 import com.Bobr.mill.ui.viewmodels.GameEvent
 import com.Bobr.mill.ui.viewmodels.MillViewModel
+import com.Bobr.mill.utils.SoundManager
 
 private data class MoveAnimInfo(val fromIndex: Int, val toIndex: Int, val player: Player)
 private data class RemoveAnimInfo(val fromIndex: Int, val player: Player, val destinationIsTop: Boolean)
@@ -48,10 +49,17 @@ private data class RemoveAnimInfo(val fromIndex: Int, val player: Player, val de
 @Composable
 fun GameScreen(
     viewModel: MillViewModel,
+    soundManager: SoundManager,
     onPointClicked: (Int) -> Unit,
     onQuitGame: () -> Unit,
-    onRematchRequested: () -> Unit = {}
+    onConcede: () -> Unit,
+    onRematchRequested: () -> Unit = {},
+    onSendSignal: (Int) -> Unit // <-- NEU!
 ) {
+    val isRpsActive by viewModel.isRpsActive.collectAsState()
+    val rpsMyChoice by viewModel.rpsMyChoice.collectAsState()
+    val rpsWinnerRole by viewModel.rpsWinnerRole.collectAsState()
+    val isRpsTie by viewModel.isRpsTie.collectAsState()
     val state by viewModel.state.collectAsState()
     val myRole by viewModel.myLocalRole.collectAsState()
     val isOnline = !viewModel.isLocalMode
@@ -62,6 +70,9 @@ fun GameScreen(
     val blackPieceImg = ImageBitmap.imageResource(id = R.drawable.piece_black)
     val woodTextureImg = ImageBitmap.imageResource(id = R.drawable.game_board)
 
+    // --- STATE FÜR DEN CONCEDE DIALOG ---
+    var showConcedeDialog by remember { mutableStateOf(false) }
+
     // --- ANIMATIONS-STATUS ---
     var previousBoard by remember { mutableStateOf(state.board) }
 
@@ -71,15 +82,24 @@ fun GameScreen(
     var removeAnimInfo by remember { mutableStateOf<RemoveAnimInfo?>(null) }
     val removeProgress = remember { Animatable(0f) }
 
-    // --- VERLORENE STEINE ZÄHLER ---
-    val p1Lost = 9 - state.piecesOnBoardPlayerOne - state.unplacedPiecesPlayerOne
-    val p2Lost = 9 - state.piecesOnBoardPlayerTwo - state.unplacedPiecesPlayerTwo
+    // --- STEINE LOGIK ---
+    val p1Unplaced = state.unplacedPiecesPlayerOne
+    val p2Unplaced = state.unplacedPiecesPlayerTwo
 
-    val topLostCount = if (isOnline) (if (myRole == Player.PLAYER_ONE) p1Lost else p2Lost) else p2Lost
-    val bottomLostCount = if (isOnline) (if (myRole == Player.PLAYER_ONE) p2Lost else p1Lost) else p1Lost
+    val p1Lost = 9 - state.piecesOnBoardPlayerOne - p1Unplaced
+    val p2Lost = 9 - state.piecesOnBoardPlayerTwo - p2Unplaced
 
-    val topPieceImg = if (isOnline) (if (myRole == Player.PLAYER_ONE) whitePieceImg else blackPieceImg) else blackPieceImg
-    val bottomPieceImg = if (isOnline) (if (myRole == Player.PLAYER_ONE) blackPieceImg else whitePieceImg) else whitePieceImg
+    val isBottomPlayerTwo = isOnline && myRole == Player.PLAYER_TWO
+
+    val bottomUnplacedCount = if (isBottomPlayerTwo) p2Unplaced else p1Unplaced
+    val bottomCapturedCount = if (isBottomPlayerTwo) p1Lost else p2Lost
+    val bottomUnplacedImg = if (isBottomPlayerTwo) blackPieceImg else whitePieceImg
+    val bottomCapturedImg = if (isBottomPlayerTwo) whitePieceImg else blackPieceImg
+
+    val topUnplacedCount = if (isBottomPlayerTwo) p1Unplaced else p2Unplaced
+    val topCapturedCount = if (isBottomPlayerTwo) p2Lost else p1Lost
+    val topUnplacedImg = if (isBottomPlayerTwo) whitePieceImg else blackPieceImg
+    val topCapturedImg = if (isBottomPlayerTwo) blackPieceImg else whitePieceImg
 
     LaunchedEffect(state.board) {
         if (previousBoard != state.board) {
@@ -93,15 +113,19 @@ fun GameScreen(
                 }
             }
 
-            // 1. Zug-Animation
+            // 1. Zug-Animation (Schieben / Fliegen)
             if (removed.size == 1 && added.size == 1 && previousBoard[removed[0]] == state.board[added[0]]) {
+                soundManager.playMoveSound() // Sound startet sofort beim Losrutschen
+
                 moveAnimInfo = MoveAnimInfo(removed[0], added[0], state.board[added[0]])
                 moveProgress.snapTo(0f)
                 moveProgress.animateTo(1f, tween(400, easing = FastOutSlowInEasing))
                 moveAnimInfo = null
             }
-            // 2. Lösch-Animation (Fliegen zur Ablage)
+            // 2. Lösch-Animation (Schlagen)
             else if (removed.size == 1 && added.isEmpty()) {
+                soundManager.playRemoveSound() // Sound fürs Schlagen
+
                 val removedPlayer = previousBoard[removed[0]]
                 val destinationIsTop = if (isOnline) removedPlayer == myRole else removedPlayer == Player.PLAYER_TWO
 
@@ -110,6 +134,11 @@ fun GameScreen(
                 removeProgress.animateTo(1f, tween(500, easing = FastOutSlowInEasing))
                 removeAnimInfo = null
             }
+            // 3. Setz-Animation (Neu!)
+            else if (added.size == 1 && removed.isEmpty()) {
+                soundManager.playPlaceSound() // Sound für das normale Setzen in Phase 1
+            }
+
             previousBoard = state.board
         }
     }
@@ -173,8 +202,9 @@ fun GameScreen(
             // --- DYNAMIC TOP INFO CARD ---
             Card(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0x99000000)),
-                shape = RoundedCornerShape(12.dp)
+                colors = CardDefaults.cardColors(containerColor = Color(0xEE3E2723)),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color(0xFFD4AF37))
             ) {
                 Column(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp).fillMaxWidth(),
@@ -186,7 +216,7 @@ fun GameScreen(
                         myRole == Player.PLAYER_TWO -> "You are playing Black"
                         else -> "Waiting for assignment..."
                     }
-                    Text(text = roleText, fontSize = 12.sp, color = Color.LightGray)
+                    Text(text = roleText, fontSize = 12.sp, color = Color(0xFFD4AF37))
 
                     Spacer(modifier = Modifier.height(4.dp))
 
@@ -201,7 +231,7 @@ fun GameScreen(
                     }
 
                     val turnColor = if (isOnline && state.currentPhase != Phase.GAME_OVER) {
-                        if (isMyTurn) Color(0xFF4CAF50) else Color(0xFFFF5252)
+                        if (isMyTurn) Color(0xFFFFD700) else Color(0xFFA1887F)
                     } else {
                         Color.White
                     }
@@ -239,31 +269,41 @@ fun GameScreen(
                         }
                     }
 
+                    // ANGEPASST: Ohne "/9"
+                    val placingInfo = if (state.currentPhase == Phase.PLACING) {
+                        val unplaced = if (state.currentTurn == Player.PLAYER_ONE) state.unplacedPiecesPlayerOne else state.unplacedPiecesPlayerTwo
+                        "\n($unplaced left to place)"
+                    } else ""
+
                     Text(
-                        text = instructionText,
+                        text = instructionText + placingInfo,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFFE0E0E0),
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        minLines = 2
                     )
                 }
             }
 
-// --- OBERE ABLAGE (Links über dem Brett) ---
+            // --- OBERE ABLAGE ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp) // FESTE HÖHE: Verhindert das Verschieben des Layouts
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.Start,
+                    .height(42.dp)
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                repeat(topLostCount) {
-                    Image(
-                        bitmap = topPieceImg,
-                        contentDescription = null,
-                        modifier = Modifier.size(50.dp).padding(end = 4.dp)
-                    )
+                Row {
+                    repeat(topCapturedCount) {
+                        Image(bitmap = topCapturedImg, contentDescription = null, modifier = Modifier.size(40.dp).padding(end = 2.dp))
+                    }
+                }
+                Row {
+                    repeat(topUnplacedCount) {
+                        Image(bitmap = topUnplacedImg, contentDescription = null, modifier = Modifier.size(40.dp).padding(start = 2.dp))
+                    }
                 }
             }
 
@@ -273,9 +313,6 @@ fun GameScreen(
                     .fillMaxWidth()
                     .weight(1f, fill = false)
                     .aspectRatio(1f)
-                    .shadow(16.dp, RoundedCornerShape(16.dp))
-                    .background(Color.Black, RoundedCornerShape(16.dp))
-                    .clip(RoundedCornerShape(16.dp))
             ) {
                 Canvas(
                     modifier = Modifier
@@ -313,13 +350,16 @@ fun GameScreen(
                         return Offset(margin + gridPos.first * step, margin + gridPos.second * step)
                     }
 
-                    // 1. HOLZBRETT ZEICHNEN
+                    val zoomFactor = 0.19f
+                    val bleedX = (size.width * zoomFactor).toInt()
+                    val bleedY = (size.height * zoomFactor).toInt()
+
                     drawImage(
                         image = woodTextureImg,
-                        dstSize = IntSize(size.width.toInt(), size.height.toInt())
+                        dstOffset = IntOffset(-bleedX, -bleedY),
+                        dstSize = IntSize((size.width + 2 * bleedX).toInt(), (size.height + 2 * bleedY).toInt())
                     )
 
-                    // 2. LINIEN ZEICHNEN
                     val lineColor = Color(0xFF2D1A11)
                     BoardDefinitions.adjacencyMap.forEach { (pointIndex, connectedPoints) ->
                         val startOffset = getCenter(pointIndex)
@@ -330,22 +370,45 @@ fun GameScreen(
                         }
                     }
 
-                    // 3. MARKIERUNGEN ZEICHNEN
                     if (!isOnline || isMyTurn) {
                         validMoves.forEach { index ->
                             drawCircle(color = Color(0xAAFFEB3B), radius = step / 4f, center = getCenter(index), style = Stroke(width = 8f))
                         }
                     }
 
-                    // 4. STATISCHE STEINE ZEICHNEN
+                    fun isPartOfMillLocal(board: List<Player>, index: Int, player: Player): Boolean {
+                        return BoardDefinitions.millCombinations.filter { it.contains(index) }.any { combo ->
+                            combo.all { board[it] == player }
+                        }
+                    }
+
+                    fun areAllOpponentPiecesInMills(board: List<Player>, opponent: Player): Boolean {
+                        val allOpponentIndices = board.indices.filter { board[it] == opponent }
+                        return allOpponentIndices.all { isPartOfMillLocal(board, it, opponent) }
+                    }
+
+                    val currentOpponent = if (state.currentTurn == Player.PLAYER_ONE) Player.PLAYER_TWO else Player.PLAYER_ONE
+                    val allOpponentInMills = areAllOpponentPiecesInMills(state.board, currentOpponent)
+
                     state.board.forEachIndexed { index, player ->
                         if (moveAnimInfo != null && index == moveAnimInfo!!.toIndex) return@forEachIndexed
                         if (removeAnimInfo != null && index == removeAnimInfo!!.fromIndex) return@forEachIndexed
 
                         val center = getCenter(index)
                         val baseAnimatedRadius = animatedPieceScales[index].value * step
-                        val isRemovableTarget = state.currentPhase == Phase.REMOVING && player != state.currentTurn && player != Player.NONE
-                        val finalRadius = if (isRemovableTarget && (!isOnline || isMyTurn)) baseAnimatedRadius * pulseScale else baseAnimatedRadius
+
+                        var isRemovableTarget = false
+
+                        if (state.currentPhase == Phase.REMOVING && player == currentOpponent) {
+                            if (!isOnline || isMyTurn) {
+                                val inMill = isPartOfMillLocal(state.board, index, currentOpponent)
+                                if (!inMill || allOpponentInMills) {
+                                    isRemovableTarget = true
+                                }
+                            }
+                        }
+
+                        val finalRadius = if (isRemovableTarget) baseAnimatedRadius * pulseScale else baseAnimatedRadius
 
                         if (state.selectedPieceIndex == index) {
                             drawCircle(color = Color(0x66FFEB3B), radius = finalRadius + 10f, center = center)
@@ -359,7 +422,6 @@ fun GameScreen(
                         }
                     }
 
-                    // 5. FLUG-ANIMATION (BEWEGEN)
                     moveAnimInfo?.let { animInfo ->
                         val startCenter = getCenter(animInfo.fromIndex)
                         val endCenter = getCenter(animInfo.toIndex)
@@ -373,11 +435,8 @@ fun GameScreen(
                         drawImage(image = imgToDraw, dstOffset = topLeft, dstSize = IntSize(imgSize, imgSize))
                     }
 
-                    // 6. FLUG-ANIMATION (SCHLAGEN - Fliegt vom Feld zur linken Kante)
                     removeAnimInfo?.let { animInfo ->
                         val startCenter = getCenter(animInfo.fromIndex)
-
-                        // Fliegt in Richtung der linken Kante des Brettes und verblasst
                         val targetX = 0f
                         val targetY = if (animInfo.destinationIsTop) 0f else size.height
                         val endCenter = Offset(targetX, targetY)
@@ -394,25 +453,28 @@ fun GameScreen(
                 }
             }
 
-// --- UNTERE ABLAGE (Links unter dem Brett) ---
+            // --- UNTERE ABLAGE ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp) // FESTE HÖHE: Verhindert das Verschieben des Layouts
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.Start,
+                    .height(42.dp)
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                repeat(bottomLostCount) {
-                    Image(
-                        bitmap = bottomPieceImg,
-                        contentDescription = null,
-                        modifier = Modifier.size(50.dp).padding(end = 4.dp)
-                    )
+                Row {
+                    repeat(bottomCapturedCount) {
+                        Image(bitmap = bottomCapturedImg, contentDescription = null, modifier = Modifier.size(40.dp).padding(end = 2.dp))
+                    }
+                }
+                Row {
+                    repeat(bottomUnplacedCount) {
+                        Image(bitmap = bottomUnplacedImg, contentDescription = null, modifier = Modifier.size(40.dp).padding(start = 2.dp))
+                    }
                 }
             }
 
-            // --- BOTTOM AREA ---
+            // --- BOTTOM AREA (NEUES DESIGN) ---
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -421,25 +483,62 @@ fun GameScreen(
                 if (!isOnline) {
                     Button(
                         onClick = { viewModel.onEvent(GameEvent.OnResetClicked) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4AF37)) // Gold
                     ) {
-                        Text("Restart", color = Color.White)
+                        Text("Restart", color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
 
-                Button(
-                    onClick = onQuitGame,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
-                ) {
-                    Text("Quit Game", color = Color.White)
+                if (state.currentPhase != Phase.GAME_OVER) {
+                    Button(
+                        onClick = { showConcedeDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3E2723)), // Dunkelbraun
+                        border = BorderStroke(1.dp, Color(0xFFD4AF37)) // Goldener Rand
+                    ) {
+                        Text("Concede", color = Color(0xFFD4AF37), fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
 
-        // --- GAME OVER POPUP ---
+        // --- CONCEDE POPUP ---
+        if (showConcedeDialog) {
+            Dialog(onDismissRequest = { showConcedeDialog = false }) {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xEE3E2723)),
+                    modifier = Modifier.border(1.dp, Color(0xFFD4AF37), RoundedCornerShape(16.dp))
+                ) {
+                    Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Concede Match?", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Are you sure you want to give up? This will count as a win for your opponent.", color = Color.LightGray, textAlign = TextAlign.Center)
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            Button(
+                                onClick = { showConcedeDialog = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3E2723)),
+                                border = BorderStroke(1.dp, Color(0xFFD4AF37))
+                            ) { Text("Cancel", color = Color(0xFFD4AF37)) }
+
+                            Button(
+                                onClick = {
+                                    showConcedeDialog = false
+                                    onConcede()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4AF37))
+                            ) { Text("Yes, Concede", color = Color.Black, fontWeight = FontWeight.Bold) }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- GAME OVER POPUP (NEUES DESIGN) ---
         if (state.currentPhase == Phase.GAME_OVER) {
-            val didIWin = isOnline && state.currentTurn == myRole
-            val winner = state.currentTurn
+            val winner = state.winner
+            val didIWin = isOnline && winner == myRole
 
             val titleText = if (isOnline) {
                 if (didIWin) "VICTORY!" else "DEFEAT"
@@ -486,9 +585,9 @@ fun GameScreen(
                         Button(
                             onClick = onRematchRequested,
                             modifier = Modifier.fillMaxWidth().height(50.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4AF37)) // Gold
                         ) {
-                            Text(if (isOnline) "Request Rematch" else "Play Again", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text(if (isOnline) "Request Rematch" else "Play Again", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -496,9 +595,78 @@ fun GameScreen(
                         Button(
                             onClick = onQuitGame,
                             modifier = Modifier.fillMaxWidth().height(50.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3E2723)), // Dunkelbraun
+                            border = BorderStroke(1.dp, Color(0xFFD4AF37)) // Goldener Rand
                         ) {
-                            Text("Quit to Main Menu", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Quit to Main Menu", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD4AF37))
+                        }
+                    }
+                }
+            }
+        }
+        // --- SCHERE STEIN PAPIER POPUP ---
+        if (isRpsActive) {
+            Dialog(onDismissRequest = {}) { // Verhindert, dass man es wegklickt
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xEE3E2723)),
+                    modifier = Modifier.border(2.dp, Color(0xFFD4AF37), RoundedCornerShape(16.dp))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        if (isRpsTie) {
+                            Text("It's a Tie!", color = Color(0xFFFFD700), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Both players chose the same.", color = Color.White)
+
+                            // Startet das Spiel nach 2 Sekunden automatisch neu
+                            LaunchedEffect(Unit) {
+                                kotlinx.coroutines.delay(2000)
+                                viewModel.resetRpsRound()
+                            }
+                        } else if (rpsWinnerRole != null) {
+                            if (rpsWinnerRole == myRole) {
+                                Text("You Won!", color = Color.Green, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Choose your color:", color = Color.White)
+
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                    Button(
+                                        onClick = {
+                                            viewModel.finalizeMyColorChoice(true)
+                                            onSendSignal(-20)
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color.White)
+                                    ) { Text("White", color = Color.Black, fontWeight = FontWeight.Bold) }
+
+                                    Button(
+                                        onClick = {
+                                            viewModel.finalizeMyColorChoice(false)
+                                            onSendSignal(-21)
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF222222))
+                                    ) { Text("Black", color = Color.White, fontWeight = FontWeight.Bold) }
+                                }
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("White begins", color = Color.White, fontWeight = FontWeight.Bold)
+                            } else {
+                                Text("Opponent Won!", color = Color.Red, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Waiting for opponent to choose color...", color = Color.LightGray, textAlign = TextAlign.Center)
+                            }
+                        } else if (rpsMyChoice == 0) {
+                            Text("Rock, Paper, Scissors!", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                Button(onClick = { viewModel.setMyRpsChoice(1); onSendSignal(-10) }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4AF37))) { Text("🪨", fontSize = 24.sp) }
+                                Button(onClick = { viewModel.setMyRpsChoice(2); onSendSignal(-11) }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4AF37))) { Text("📄", fontSize = 24.sp) }
+                                Button(onClick = { viewModel.setMyRpsChoice(3); onSendSignal(-12) }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4AF37))) { Text("✂️", fontSize = 24.sp) }
+                            }
+                        } else {
+                            Text("Waiting for opponent...", color = Color.LightGray, fontSize = 18.sp)
                         }
                     }
                 }

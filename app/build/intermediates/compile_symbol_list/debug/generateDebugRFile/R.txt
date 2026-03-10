@@ -10,11 +10,16 @@ int drawable background 0x0
 int drawable game_board 0x0
 int drawable ic_launcher_background 0x0
 int drawable ic_launcher_foreground 0x0
+int drawable mills_logo 0x0
 int drawable piece_black 0x0
 int drawable piece_white 0x0
 int mipmap ic_launcher 0x0
 int mipmap ic_launcher_foreground 0x0
 int mipmap ic_launcher_round 0x0
+int raw music_bg 0x0
+int raw sound_move 0x0
+int raw sound_place 0x0
+int raw sound_remove 0x0
 int string app_name 0x0
 int style Theme_MillByBobr 0x0
 int xml backup_rules 0x0

@@ -12,11 +12,16 @@ drawable background
 drawable game_board
 drawable ic_launcher_background
 drawable ic_launcher_foreground
+drawable mills_logo
 drawable piece_black
 drawable piece_white
 mipmap ic_launcher
 mipmap ic_launcher_foreground
 mipmap ic_launcher_round
+raw music_bg
+raw sound_move
+raw sound_place
+raw sound_remove
 string app_name
 style Theme.MillByBobr
 xml backup_rules
