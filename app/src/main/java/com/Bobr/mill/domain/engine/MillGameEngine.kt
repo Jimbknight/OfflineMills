@@ -9,7 +9,6 @@ class MillGameEngine {
     private fun Player.opponent(): Player = if (this == Player.PLAYER_ONE) Player.PLAYER_TWO else Player.PLAYER_ONE
 
     fun processClick(state: GameState, clickedIndex: Int): GameState {
-        if (state.currentPhase == Phase.GAME_OVER) return state
 
         return when (state.currentPhase) {
             Phase.PLACING -> handlePlacing(state, clickedIndex)
@@ -35,7 +34,11 @@ class MillGameEngine {
             unplacedPiecesPlayerOne = unplacedP1,
             unplacedPiecesPlayerTwo = unplacedP2,
             piecesOnBoardPlayerOne = onBoardP1,
-            piecesOnBoardPlayerTwo = onBoardP2
+            piecesOnBoardPlayerTwo = onBoardP2,
+            lastMoveFrom = null, // Beim Setzen gibt es kein "Von"
+            lastMoveTo = index,
+            movesWithoutCaptureOrMill = 0, // Beim Setzen ändert sich das Material (irreversibel)
+            boardHistory = emptyMap() // Historie wird resettet, da irreversibel
         )
 
         return checkMillAndEndTurn(nextState, index)
@@ -52,7 +55,7 @@ class MillGameEngine {
         val isValidMove = if (state.currentPhase == Phase.FLYING) {
             true
         } else {
-            BoardDefinitions.adjacencyMap[selectedIndex]?.contains(index) == true
+            BoardDefinitions.adjacencyMap.getValue(selectedIndex).contains(index)
         }
 
         if (!isValidMove) return state
@@ -61,7 +64,13 @@ class MillGameEngine {
         newBoard[selectedIndex] = Player.NONE
         newBoard[index] = state.currentTurn
 
-        val nextState = state.copy(board = newBoard, selectedPieceIndex = null)
+        val nextState = state.copy(
+            board = newBoard,
+            selectedPieceIndex = null,
+            lastMoveFrom = selectedIndex, // Speichere, von wo der Stein kam
+            lastMoveTo = index,           // Speichere, wo er hinging
+            movesWithoutCaptureOrMill = state.movesWithoutCaptureOrMill + 1 // Zugzähler erhöhen
+        )
 
         return checkMillAndEndTurn(nextState, index)
     }
@@ -97,21 +106,25 @@ class MillGameEngine {
                 board = newBoard, piecesOnBoardPlayerOne = onBoardP1, piecesOnBoardPlayerTwo = onBoardP2,
                 currentPhase = Phase.GAME_OVER,
                 infoMessage = "Game Over! ${if (state.currentTurn == Player.PLAYER_ONE) "White" else "Black"} wins!",
-                winner = state.currentTurn // NEU: Gewinner wird gesetzt!
+                winner = state.currentTurn
             )
         }
 
         val nextState = state.copy(
-            board = newBoard, piecesOnBoardPlayerOne = onBoardP1, piecesOnBoardPlayerTwo = onBoardP2,
-            currentTurn = opponent
+            board = newBoard,
+            piecesOnBoardPlayerOne = onBoardP1,
+            piecesOnBoardPlayerTwo = onBoardP2,
+            currentTurn = opponent,
+            movesWithoutCaptureOrMill = 0, // Schlagen resettet die 50-Züge Regel!
+            boardHistory = emptyMap() // Schlagen verändert das Material -> Historie resettet!
         )
 
-        // ENDBEDINGUNG 2: Gegner ist nach dem Entfernen eines Steins komplett eingesperrt
+        // ENDBEDINGUNG 2: Gegner ist eingesperrt
         if (isPlayerTrapped(nextState, opponent)) {
             return nextState.copy(
                 currentPhase = Phase.GAME_OVER, currentTurn = state.currentTurn,
                 infoMessage = "Game Over! ${if (state.currentTurn == Player.PLAYER_ONE) "White" else "Black"} wins (Opponent trapped)!",
-                winner = state.currentTurn // NEU: Gewinner wird gesetzt!
+                winner = state.currentTurn
             )
         }
 
@@ -120,18 +133,50 @@ class MillGameEngine {
 
     private fun checkMillAndEndTurn(state: GameState, lastMovedIndex: Int): GameState {
         if (isPartOfMill(state.board, lastMovedIndex, state.currentTurn)) {
-            return state.copy(currentPhase = Phase.REMOVING, infoMessage = "Mill! Remove an opponent's piece.")
+            return state.copy(
+                currentPhase = Phase.REMOVING,
+                infoMessage = "Mill! Remove an opponent's piece.",
+                movesWithoutCaptureOrMill = 0 // Mühle resettet den Zähler (da ein Stein fallen wird)
+            )
         }
 
         val opponent = state.currentTurn.opponent()
-        val nextState = state.copy(currentTurn = opponent)
 
-        // ENDBEDINGUNG 3: Gegner ist nach meinem Zug komplett eingesperrt
+        // --- DRAW LOGIC: Historie für Stellungswiederholung generieren ---
+        // Ein Status wird durch das Brett und den Spieler am Zug definiert
+        val stateKey = "${state.board.joinToString("")}_$opponent"
+        val newHistory = state.boardHistory.toMutableMap()
+        val occurrences = newHistory.getOrDefault(stateKey, 0) + 1
+        newHistory[stateKey] = occurrences
+
+        var nextState = state.copy(currentTurn = opponent, boardHistory = newHistory)
+
+        // --- DRAW CHECK: 50 Züge Regel (25 volle Runden ohne Mühle/Schlagen) ---
+        if (nextState.movesWithoutCaptureOrMill >= 50) {
+            return nextState.copy(
+                currentPhase = Phase.GAME_OVER,
+                infoMessage = "Draw! 50 moves without capture or mill.",
+                winner = null,
+                isDraw = true
+            )
+        }
+
+        // --- DRAW CHECK: 3-Fache Stellungswiederholung ---
+        if (occurrences >= 3) {
+            return nextState.copy(
+                currentPhase = Phase.GAME_OVER,
+                infoMessage = "Draw! 3-fold repetition.",
+                winner = null,
+                isDraw = true
+            )
+        }
+
+        // ENDBEDINGUNG 3: Gegner ist eingesperrt
         if (isPlayerTrapped(nextState, opponent)) {
             return nextState.copy(
                 currentPhase = Phase.GAME_OVER, currentTurn = state.currentTurn,
                 infoMessage = "Game Over! ${if (state.currentTurn == Player.PLAYER_ONE) "White" else "Black"} wins (Opponent trapped)!",
-                winner = state.currentTurn // NEU: Gewinner wird gesetzt!
+                winner = state.currentTurn
             )
         }
 
@@ -153,7 +198,7 @@ class MillGameEngine {
 
         val playerPieces = state.board.indices.filter { state.board[it] == playerToCheck }
         for (index in playerPieces) {
-            val adjacent = BoardDefinitions.adjacencyMap[index] ?: emptyList()
+            val adjacent = BoardDefinitions.adjacencyMap.getValue(index)
             if (adjacent.any { state.board[it] == Player.NONE }) {
                 return false
             }

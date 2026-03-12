@@ -10,7 +10,11 @@ data class GameState(
     val piecesOnBoardPlayerTwo: Int = 0,
     val selectedPieceIndex: Int? = null,
     val infoMessage: String = "Player 1's turn to place a piece.",
-
-    // NEU: Zeigt an, wer gewonnen hat. Wenn null, läuft das Spiel noch.
-    val winner: Player? = null
+    val winner: Player? = null,
+    val zobristHash: Long = 0L,
+    val lastMoveFrom: Int? = null,
+    val lastMoveTo: Int? = null,
+    val movesWithoutCaptureOrMill: Int = 0,
+    val boardHistory: Map<String, Int> = emptyMap(),
+    val isDraw: Boolean = false
 )

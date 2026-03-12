@@ -54,7 +54,7 @@ fun GameScreen(
     onQuitGame: () -> Unit,
     onConcede: () -> Unit,
     onRematchRequested: () -> Unit = {},
-    onSendSignal: (Int) -> Unit // <-- NEU!
+    onSendSignal: (Int) -> Unit
 ) {
     val isRpsActive by viewModel.isRpsActive.collectAsState()
     val rpsMyChoice by viewModel.rpsMyChoice.collectAsState()
@@ -62,7 +62,7 @@ fun GameScreen(
     val isRpsTie by viewModel.isRpsTie.collectAsState()
     val state by viewModel.state.collectAsState()
     val myRole by viewModel.myLocalRole.collectAsState()
-    val isOnline = !viewModel.isLocalMode
+    // isOnline wird für die UI-Logik nicht mehr zwingend gebraucht, da Bot und Online sich gleich anfühlen sollen
 
     val isMyTurn = state.currentTurn == myRole
 
@@ -70,10 +70,8 @@ fun GameScreen(
     val blackPieceImg = ImageBitmap.imageResource(id = R.drawable.piece_black)
     val woodTextureImg = ImageBitmap.imageResource(id = R.drawable.game_board)
 
-    // --- STATE FÜR DEN CONCEDE DIALOG ---
     var showConcedeDialog by remember { mutableStateOf(false) }
 
-    // --- ANIMATIONS-STATUS ---
     var previousBoard by remember { mutableStateOf(state.board) }
 
     var moveAnimInfo by remember { mutableStateOf<MoveAnimInfo?>(null) }
@@ -82,14 +80,14 @@ fun GameScreen(
     var removeAnimInfo by remember { mutableStateOf<RemoveAnimInfo?>(null) }
     val removeProgress = remember { Animatable(0f) }
 
-    // --- STEINE LOGIK ---
     val p1Unplaced = state.unplacedPiecesPlayerOne
     val p2Unplaced = state.unplacedPiecesPlayerTwo
 
     val p1Lost = 9 - state.piecesOnBoardPlayerOne - p1Unplaced
     val p2Lost = 9 - state.piecesOnBoardPlayerTwo - p2Unplaced
 
-    val isBottomPlayerTwo = isOnline && myRole == Player.PLAYER_TWO
+    // NEU: Egal ob Bot oder Online, "mein" Bereich (myRole) ist immer unten!
+    val isBottomPlayerTwo = myRole == Player.PLAYER_TWO
 
     val bottomUnplacedCount = if (isBottomPlayerTwo) p2Unplaced else p1Unplaced
     val bottomCapturedCount = if (isBottomPlayerTwo) p1Lost else p2Lost
@@ -113,30 +111,27 @@ fun GameScreen(
                 }
             }
 
-            // 1. Zug-Animation (Schieben / Fliegen)
             if (removed.size == 1 && added.size == 1 && previousBoard[removed[0]] == state.board[added[0]]) {
-                soundManager.playMoveSound() // Sound startet sofort beim Losrutschen
-
+                soundManager.playMoveSound()
                 moveAnimInfo = MoveAnimInfo(removed[0], added[0], state.board[added[0]])
                 moveProgress.snapTo(0f)
                 moveProgress.animateTo(1f, tween(400, easing = FastOutSlowInEasing))
                 moveAnimInfo = null
             }
-            // 2. Lösch-Animation (Schlagen)
             else if (removed.size == 1 && added.isEmpty()) {
-                soundManager.playRemoveSound() // Sound fürs Schlagen
-
+                soundManager.playRemoveSound()
                 val removedPlayer = previousBoard[removed[0]]
-                val destinationIsTop = if (isOnline) removedPlayer == myRole else removedPlayer == Player.PLAYER_TWO
+
+                // NEU: Animation geht nach oben, wenn der geschlagene Stein MIR gehört (Gegner bekommt ihn)
+                val destinationIsTop = removedPlayer == myRole
 
                 removeAnimInfo = RemoveAnimInfo(removed[0], removedPlayer, destinationIsTop)
                 removeProgress.snapTo(0f)
                 removeProgress.animateTo(1f, tween(500, easing = FastOutSlowInEasing))
                 removeAnimInfo = null
             }
-            // 3. Setz-Animation (Neu!)
             else if (added.size == 1 && removed.isEmpty()) {
-                soundManager.playPlaceSound() // Sound für das normale Setzen in Phase 1
+                soundManager.playPlaceSound()
             }
 
             previousBoard = state.board
@@ -198,8 +193,6 @@ fun GameScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-
-            // --- DYNAMIC TOP INFO CARD ---
             Card(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xEE3E2723)),
@@ -210,27 +203,26 @@ fun GameScreen(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp).fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    val roleText = when {
-                        !isOnline -> "Local Match"
-                        myRole == Player.PLAYER_ONE -> "You are playing White"
-                        myRole == Player.PLAYER_TWO -> "You are playing Black"
+                    // NEU: Zeigt immer deine Farbe an
+                    val roleText = when (myRole) {
+                        Player.PLAYER_ONE -> "You are playing White"
+                        Player.PLAYER_TWO -> "You are playing Black"
                         else -> "Waiting for assignment..."
                     }
                     Text(text = roleText, fontSize = 12.sp, color = Color(0xFFD4AF37))
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    val turnText = if (isOnline) {
-                        if (state.currentPhase == Phase.GAME_OVER) "GAME OVER"
-                        else if (isMyTurn) "YOUR TURN"
-                        else "OPPONENT'S TURN"
+                    // NEU: Einheitliche Anzeige, wer dran ist
+                    val turnText = if (state.currentPhase == Phase.GAME_OVER) {
+                        "GAME OVER"
+                    } else if (isMyTurn) {
+                        "YOUR TURN"
                     } else {
-                        if (state.currentPhase == Phase.GAME_OVER) "GAME OVER"
-                        else if (state.currentTurn == Player.PLAYER_ONE) "WHITE'S TURN"
-                        else "BLACK'S TURN"
+                        "OPPONENT'S TURN"
                     }
 
-                    val turnColor = if (isOnline && state.currentPhase != Phase.GAME_OVER) {
+                    val turnColor = if (state.currentPhase != Phase.GAME_OVER) {
                         if (isMyTurn) Color(0xFFFFD700) else Color(0xFFA1887F)
                     } else {
                         Color.White
@@ -245,13 +237,13 @@ fun GameScreen(
                                 .border(1.dp, Color.Gray, CircleShape)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-
                         Text(text = turnText, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = turnColor)
                     }
 
                     Spacer(modifier = Modifier.height(2.dp))
 
-                    val instructionText = if (isOnline && !isMyTurn && state.currentPhase != Phase.GAME_OVER) {
+                    // NEU: Wenn man nicht dran ist, immer Warten anzeigen
+                    val instructionText = if (!isMyTurn && state.currentPhase != Phase.GAME_OVER) {
                         "Waiting for opponent to move..."
                     } else if (state.currentPhase == Phase.GAME_OVER) {
                         "Match finished."
@@ -269,7 +261,6 @@ fun GameScreen(
                         }
                     }
 
-                    // ANGEPASST: Ohne "/9"
                     val placingInfo = if (state.currentPhase == Phase.PLACING) {
                         val unplaced = if (state.currentTurn == Player.PLAYER_ONE) state.unplacedPiecesPlayerOne else state.unplacedPiecesPlayerTwo
                         "\n($unplaced left to place)"
@@ -286,7 +277,6 @@ fun GameScreen(
                 }
             }
 
-            // --- OBERE ABLAGE ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -307,7 +297,6 @@ fun GameScreen(
                 }
             }
 
-            // --- DAS SPIELBRETT ---
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -319,8 +308,8 @@ fun GameScreen(
                         .fillMaxSize()
                         .pointerInput(Unit) {
                             detectTapGestures { tapOffset ->
-                                val isCurrentlyMyTurn = state.currentTurn == myRole
-                                if (isOnline && !isCurrentlyMyTurn && state.currentPhase != Phase.GAME_OVER) return@detectTapGestures
+                                // NEU: Sperrt Klicks konsequent, wenn der Bot (oder Online-Gegner) dran ist
+                                if (!isMyTurn && state.currentPhase != Phase.GAME_OVER) return@detectTapGestures
 
                                 val margin = size.width * 0.06f
                                 val drawableWidth = size.width - (2 * margin)
@@ -350,7 +339,7 @@ fun GameScreen(
                         return Offset(margin + gridPos.first * step, margin + gridPos.second * step)
                     }
 
-                    val zoomFactor = 0.19f
+                    val zoomFactor = 0.008f
                     val bleedX = (size.width * zoomFactor).toInt()
                     val bleedY = (size.height * zoomFactor).toInt()
 
@@ -360,7 +349,7 @@ fun GameScreen(
                         dstSize = IntSize((size.width + 2 * bleedX).toInt(), (size.height + 2 * bleedY).toInt())
                     )
 
-                    val lineColor = Color(0xFF2D1A11)
+                    val lineColor = Color(0xFF000000)
                     BoardDefinitions.adjacencyMap.forEach { (pointIndex, connectedPoints) ->
                         val startOffset = getCenter(pointIndex)
                         connectedPoints.forEach { connectedIndex ->
@@ -370,7 +359,8 @@ fun GameScreen(
                         }
                     }
 
-                    if (!isOnline || isMyTurn) {
+                    // NEU: Zeigt gültige Züge nur noch an, wenn DU dran bist
+                    if (isMyTurn) {
                         validMoves.forEach { index ->
                             drawCircle(color = Color(0xAAFFEB3B), radius = step / 4f, center = getCenter(index), style = Stroke(width = 8f))
                         }
@@ -389,7 +379,23 @@ fun GameScreen(
 
                     val currentOpponent = if (state.currentTurn == Player.PLAYER_ONE) Player.PLAYER_TWO else Player.PLAYER_ONE
                     val allOpponentInMills = areAllOpponentPiecesInMills(state.board, currentOpponent)
-
+// --- NEU: Highlight für den letzten Zug ---
+                    // Zeigt rot an, von wo der Stein kam
+                    state.lastMoveFrom?.let { index ->
+                        drawCircle(
+                            color = Color(0x55FF5252), // Halbtransparentes Rot
+                            radius = step / 3f,
+                            center = getCenter(index)
+                        )
+                    }
+                    // Zeigt grün an, wo der Stein gelandet ist
+                    state.lastMoveTo?.let { index ->
+                        drawCircle(
+                            color = Color(0x554CAF50), // Halbtransparentes Grün
+                            radius = step / 2.5f,
+                            center = getCenter(index)
+                        )
+                    }
                     state.board.forEachIndexed { index, player ->
                         if (moveAnimInfo != null && index == moveAnimInfo!!.toIndex) return@forEachIndexed
                         if (removeAnimInfo != null && index == removeAnimInfo!!.fromIndex) return@forEachIndexed
@@ -400,7 +406,7 @@ fun GameScreen(
                         var isRemovableTarget = false
 
                         if (state.currentPhase == Phase.REMOVING && player == currentOpponent) {
-                            if (!isOnline || isMyTurn) {
+                            if (isMyTurn) { // NEU: Nur noch animieren, wenn wir am Zug sind
                                 val inMill = isPartOfMillLocal(state.board, index, currentOpponent)
                                 if (!inMill || allOpponentInMills) {
                                     isRemovableTarget = true
@@ -453,7 +459,6 @@ fun GameScreen(
                 }
             }
 
-            // --- UNTERE ABLAGE ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -474,26 +479,16 @@ fun GameScreen(
                 }
             }
 
-            // --- BOTTOM AREA (NEUES DESIGN) ---
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (!isOnline) {
-                    Button(
-                        onClick = { viewModel.onEvent(GameEvent.OnResetClicked) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4AF37)) // Gold
-                    ) {
-                        Text("Restart", color = Color.Black, fontWeight = FontWeight.Bold)
-                    }
-                }
-
                 if (state.currentPhase != Phase.GAME_OVER) {
                     Button(
                         onClick = { showConcedeDialog = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3E2723)), // Dunkelbraun
-                        border = BorderStroke(1.dp, Color(0xFFD4AF37)) // Goldener Rand
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3E2723)),
+                        border = BorderStroke(1.dp, Color(0xFFD4AF37))
                     ) {
                         Text("Concede", color = Color(0xFFD4AF37), fontWeight = FontWeight.Bold)
                     }
@@ -501,7 +496,6 @@ fun GameScreen(
             }
         }
 
-        // --- CONCEDE POPUP ---
         if (showConcedeDialog) {
             Dialog(onDismissRequest = { showConcedeDialog = false }) {
                 Card(
@@ -535,24 +529,14 @@ fun GameScreen(
             }
         }
 
-        // --- GAME OVER POPUP (NEUES DESIGN) ---
         if (state.currentPhase == Phase.GAME_OVER) {
             val winner = state.winner
-            val didIWin = isOnline && winner == myRole
 
-            val titleText = if (isOnline) {
-                if (didIWin) "VICTORY!" else "DEFEAT"
-            } else {
-                if (winner == Player.PLAYER_ONE) "WHITE WINS!" else "BLACK WINS!"
-            }
-
-            val subtitleText = if (isOnline) {
-                if (didIWin) "You outsmarted your opponent." else "Better luck next time."
-            } else {
-                "A well-played match!"
-            }
-
-            val popupColor = if (isOnline && !didIWin) Color(0xFFFF5252) else Color(0xFFFFD700)
+            // NEU: Einheitliche Sieg/Niederlage Logik
+            val didIWin = winner == myRole
+            val titleText = if (didIWin) "VICTORY!" else "DEFEAT"
+            val subtitleText = if (didIWin) "You outsmarted your opponent." else "Better luck next time."
+            val popupColor = if (!didIWin) Color(0xFFFF5252) else Color(0xFFFFD700)
 
             Dialog(onDismissRequest = {}) {
                 Card(
@@ -585,9 +569,9 @@ fun GameScreen(
                         Button(
                             onClick = onRematchRequested,
                             modifier = Modifier.fillMaxWidth().height(50.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4AF37)) // Gold
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4AF37))
                         ) {
-                            Text(if (isOnline) "Request Rematch" else "Play Again", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                            Text("Play Again", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -595,8 +579,8 @@ fun GameScreen(
                         Button(
                             onClick = onQuitGame,
                             modifier = Modifier.fillMaxWidth().height(50.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3E2723)), // Dunkelbraun
-                            border = BorderStroke(1.dp, Color(0xFFD4AF37)) // Goldener Rand
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3E2723)),
+                            border = BorderStroke(1.dp, Color(0xFFD4AF37))
                         ) {
                             Text("Quit to Main Menu", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD4AF37))
                         }
@@ -604,9 +588,9 @@ fun GameScreen(
                 }
             }
         }
-        // --- SCHERE STEIN PAPIER POPUP ---
+
         if (isRpsActive) {
-            Dialog(onDismissRequest = {}) { // Verhindert, dass man es wegklickt
+            Dialog(onDismissRequest = {}) {
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xEE3E2723)),
@@ -621,7 +605,6 @@ fun GameScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             Text("Both players chose the same.", color = Color.White)
 
-                            // Startet das Spiel nach 2 Sekunden automatisch neu
                             LaunchedEffect(Unit) {
                                 kotlinx.coroutines.delay(2000)
                                 viewModel.resetRpsRound()

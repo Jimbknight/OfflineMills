@@ -32,6 +32,16 @@ import com.Bobr.mill.data.network.DiscoveredGame
 import com.Bobr.mill.data.DataManager
 import com.Bobr.mill.utils.SoundManager
 import androidx.compose.animation.*
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import kotlin.collections.getValue
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.foundation.shape.CircleShape
 
 @Composable
 fun PremiumButton(
@@ -40,6 +50,7 @@ fun PremiumButton(
     gradientColors: List<Color>,
     onClick: () -> Unit
 ) {
+
     Button(
         onClick = onClick,
         modifier = Modifier
@@ -81,14 +92,17 @@ fun StartScreen(
     onJoinStart: () -> Unit,
     onGameSelect: (String, String) -> Unit,
     onLocalPlay: () -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    onBotStart: (Int) -> Unit
 ) {
     var playerName by remember { mutableStateOf(dataManager.playerName) }
-
+    val livePlayerName by dataManager.playerNameFlow.collectAsState()
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showStatsDialog by remember { mutableStateOf(false) }
     var showJoinDialog by remember { mutableStateOf(false) } // NEU: Steuert das Join-Popup
     var selectedOpponent by remember { mutableStateOf<String?>(null) }
+    var showBotDialog by remember { mutableStateOf(false) }
+    var selectedDifficulty by remember { mutableStateOf(1) } // 1=Leicht, 2=Mittel, 3=Schwer
 
     Box(modifier = Modifier.fillMaxSize()) {
         Image(
@@ -108,7 +122,7 @@ fun StartScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = playerName.ifEmpty { "Guest" },
+                text = livePlayerName.ifEmpty { "Guest" }, // HIER: livePlayerName statt playerName
                 color = Color(0xFFD4AF37),
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp
@@ -154,7 +168,7 @@ fun StartScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     PremiumButton(
-                        text = "Host Online Game",
+                        text = "Host Game nearby",
                         icon = Icons.Default.Person,
                         gradientColors = listOf(Color(0xFF795548), Color(0xFF3E2723)),
                         onClick = { onHostStart(playerName, true) }
@@ -171,14 +185,14 @@ fun StartScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     PremiumButton(
-                        text = "Local Play",
-                        icon = Icons.Default.Home,
-                        gradientColors = listOf(Color(0xFF5D4037), Color(0xFF212121)),
-                        onClick = onLocalPlay
+                        text = "Play vs Bot",
+                        icon = Icons.Default.SmartToy,
+                        gradientColors = listOf(Color(0xFF59453D), Color(0xFF3B2923)),
+                        onClick = { showBotDialog = true }
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     PremiumButton(
-                        text = "Statistics",
+                        text = "Stats and Achievments",
                         icon = Icons.Default.Info,
                         gradientColors = listOf(Color(0xFF455A64), Color(0xFF263238)),
                         onClick = { showStatsDialog = true }
@@ -200,45 +214,7 @@ fun StartScreen(
             }
         }
 
-        // --- NAMENS EINGABE BEIM ERSTEN START ---
-        if (playerName.isBlank()) {
-            Dialog(
-                onDismissRequest = { },
-                properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
-            ) {
-                var tempName by remember { mutableStateOf("") }
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xEE3E2723)),
-                    modifier = Modifier.border(1.dp, Color(0xFFD4AF37), RoundedCornerShape(16.dp))
-                ) {
-                    Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Welcome to Mill!", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Please enter your player name.", color = Color.LightGray)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        OutlinedTextField(
-                            value = tempName,
-                            onValueChange = { tempName = it },
-                            colors = TextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedContainerColor = Color(0x44000000), unfocusedContainerColor = Color(0x44000000)),
-                            singleLine = true
-                        )
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Button(
-                            onClick = {
-                                if (tempName.isNotBlank()) {
-                                    playerName = tempName
-                                    dataManager.playerName = tempName
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4AF37))
-                        ) { Text("Save & Start", color = Color.Black, fontWeight = FontWeight.Bold) }
-                    }
-                }
-            }
-        }
 
-        // --- JOIN POPUP (Ersetzt die alte Liste) ---
         if (showJoinDialog) {
             Dialog(onDismissRequest = {
                 showJoinDialog = false
@@ -318,25 +294,26 @@ fun StartScreen(
                         Text("Settings", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // NAME BEREICH
-                        Text("Change Name:", color = Color.LightGray)
+
+
+// ... in deiner @Composable Funktion:
+                        val livePlayerName by dataManager.playerNameFlow.collectAsState()
+                        val isGoogleLogin by dataManager.isGoogleLoginFlow.collectAsState()
+
+// ... dein Textfeld:
                         OutlinedTextField(
-                            value = tempName, onValueChange = { tempName = it },
-                            colors = TextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedContainerColor = Color(0x44000000), unfocusedContainerColor = Color(0x44000000)),
-                            singleLine = true, modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        // Update Name Button direkt darunter
-                        Button(
-                            onClick = {
-                                if(tempName.isNotBlank()) {
-                                    playerName = tempName
-                                    dataManager.playerName = tempName
+                            value = livePlayerName,
+                            onValueChange = { newName ->
+                                // Nur speichern, wenn wir NICHT über Google eingeloggt sind
+                                if (!isGoogleLogin) {
+                                    dataManager.playerName = newName
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4AF37)),
-                            modifier = Modifier.align(Alignment.End)
-                        ) { Text("Update Name", color = Color.Black, fontWeight = FontWeight.Bold) }
+                            label = { Text(if (isGoogleLogin) "Google Play Name " else "Enter Player Name") },
+                            // Das Schloss: Wenn Google eingeloggt ist, ist das Feld ausgegraut und gesperrt!
+                            enabled = !isGoogleLogin,
+                            singleLine = true
+                        )
 
                         Spacer(modifier = Modifier.height(24.dp))
                         HorizontalDivider(color = Color(0x55D4AF37))
@@ -382,68 +359,150 @@ fun StartScreen(
         }
 
         // --- STATISTIK POPUP ---
+        // --- PROFIL & ACHIEVEMENTS POPUP ---
         if (showStatsDialog) {
             Dialog(onDismissRequest = { showStatsDialog = false }) {
                 Card(
                     shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xEE3E2723)),
-                    modifier = Modifier.border(1.dp, Color(0xFFD4AF37), RoundedCornerShape(16.dp))
+                    // fillMaxHeight(0.85f) sorgt dafür, dass das Fenster hoch genug für die Listen ist
+                    modifier = Modifier.border(1.dp, Color(0xFFD4AF37), RoundedCornerShape(16.dp)).fillMaxHeight(0.85f)
                 ) {
-                    Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Your Statistics", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    var selectedTab by remember { mutableIntStateOf(0) }
+
+                    Column(modifier = Modifier.padding(24.dp).fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Player Profile", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Wins", color = Color.Green, fontWeight = FontWeight.Bold)
-                                Text("${dataManager.totalWins}", color = Color.White, fontSize = 24.sp)
+                        // --- TABS (Stats | Achievements) ---
+                        TabRow(
+                            selectedTabIndex = selectedTab,
+                            containerColor = Color.Transparent,
+                            contentColor = Color(0xFFD4AF37),
+                            indicator = { tabPositions ->
+                                TabRowDefaults.SecondaryIndicator(
+                                    Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                                    color = Color(0xFFD4AF37)
+                                )
                             }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Losses", color = Color.Red, fontWeight = FontWeight.Bold)
-                                Text("${dataManager.totalLosses}", color = Color.White, fontSize = 24.sp)
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Winrate", color = Color(0xFFD4AF37), fontWeight = FontWeight.Bold)
-                                Text("${dataManager.getWinRate()}%", color = Color.White, fontSize = 24.sp)
-                            }
+                        ) {
+                            Tab(
+                                selected = selectedTab == 0,
+                                onClick = { selectedTab = 0 },
+                                text = { Text("Stats", color = if (selectedTab == 0) Color(0xFFD4AF37) else Color.LightGray) }
+                            )
+                            Tab(
+                                selected = selectedTab == 1,
+                                onClick = { selectedTab = 1 },
+                                text = { Text("Achievements", color = if (selectedTab == 1) Color(0xFFD4AF37) else Color.LightGray) }
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Pieces Taken", color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold)
-                                Text("${dataManager.totalPiecesTaken}", color = Color.White, fontSize = 24.sp)
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Pieces Lost", color = Color(0xFFFF5252), fontWeight = FontWeight.Bold)
-                                Text("${dataManager.totalPiecesLost}", color = Color.White, fontSize = 24.sp)
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Text("Recent Matches", color = Color.White, fontWeight = FontWeight.Bold)
-                        HorizontalDivider(color = Color(0xFFD4AF37), modifier = Modifier.padding(vertical = 8.dp))
-
-                        LazyColumn(modifier = Modifier.height(150.dp).fillMaxWidth()) {
-                            val history = dataManager.matchHistory
-                            if (history.isEmpty()) {
-                                item { Text("No matches played yet.", color = Color.LightGray, modifier = Modifier.padding(8.dp)) }
-                            } else {
-                                items(history) { entry ->
-                                    val parts = entry.split("|")
-                                    if(parts.size == 2) {
-                                        val isWin = parts[1] == "WIN"
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clickable { selectedOpponent = parts[0] }
-                                                .padding(vertical = 8.dp, horizontal = 4.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text("vs. ${parts[0]}", color = Color.White)
-                                            Text(if(isWin) "WON" else "LOST", color = if(isWin) Color.Green else Color.Red, fontWeight = FontWeight.Bold)
+                        // --- CONTENT BEREICH ---
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            if (selectedTab == 0) {
+                                // --- TAB 1: STATISTIKEN (Dein alter Code) ---
+                                Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("Wins", color = Color.Green, fontWeight = FontWeight.Bold)
+                                            Text("${dataManager.totalWins}", color = Color.White, fontSize = 24.sp)
+                                        }
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("Losses", color = Color.Red, fontWeight = FontWeight.Bold)
+                                            Text("${dataManager.totalLosses}", color = Color.White, fontSize = 24.sp)
+                                        }
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("Winrate", color = Color(0xFFD4AF37), fontWeight = FontWeight.Bold)
+                                            Text("${dataManager.getWinRate()}%", color = Color.White, fontSize = 24.sp)
                                         }
                                     }
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("Pieces Taken", color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold)
+                                            Text("${dataManager.totalPiecesTaken}", color = Color.White, fontSize = 24.sp)
+                                        }
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("Pieces Lost", color = Color(0xFFFF5252), fontWeight = FontWeight.Bold)
+                                            Text("${dataManager.totalPiecesLost}", color = Color.White, fontSize = 24.sp)
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(24.dp))
+                                    Text("Recent Matches", color = Color.White, fontWeight = FontWeight.Bold)
+                                    HorizontalDivider(color = Color(0xFFD4AF37), modifier = Modifier.padding(vertical = 8.dp))
+
+                                    LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                                        val history = dataManager.matchHistory
+                                        if (history.isEmpty()) {
+                                            item { Text("No matches played yet.", color = Color.LightGray, modifier = Modifier.padding(8.dp)) }
+                                        } else {
+                                            items(history) { entry ->
+                                                val parts = entry.split("|")
+                                                if(parts.size == 2) {
+                                                    val isWin = parts[1] == "WIN"
+                                                    Row(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .clickable { selectedOpponent = parts[0] }
+                                                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                                                        horizontalArrangement = Arrangement.SpaceBetween
+                                                    ) {
+                                                        Text("vs. ${parts[0]}", color = Color.White)
+                                                        Text(if(isWin) "WON" else "LOST", color = if(isWin) Color.Green else Color.Red, fontWeight = FontWeight.Bold)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                // --- TAB 2: ACHIEVEMENTS ---
+                                // --- TAB 2: TIERED ACHIEVEMENTS ---
+                                LazyColumn(modifier = Modifier.fillMaxSize()) {
+
+                                    // 1. MATCHES TIER (First Steps -> Veteran -> Enthusiast -> Legend)
+                                    item {
+                                        val matches = dataManager.totalWins + dataManager.totalLosses
+                                        when {
+                                            matches < 1 -> AchievementItem("First Steps", "Play your first match (Tier 1/4).", false, "$matches/1")
+                                            matches < 50 -> AchievementItem("Veteran", "Play a total of 50 matches (Tier 2/4).", false, "$matches/50")
+                                            matches < 100 -> AchievementItem("Enthusiast", "Play a total of 100 matches (Tier 3/4).", false, "$matches/100")
+                                            matches < 500 -> AchievementItem("Legend", "Play a total of 500 matches (Tier 4/4).", false, "$matches/500")
+                                            else -> AchievementItem("Legend", "Played a total of 500 matches (Max Tier).", true, "500/500")
+                                        }
+                                    }
+
+                                    // 2. PIECES TIER (Mill Builder -> Lumberjack -> Executioner -> Terminator)
+                                    item {
+                                        val taken = dataManager.totalPiecesTaken
+                                        when {
+                                            taken < 50 -> AchievementItem("Mill Builder", "Capture 50 opponent pieces (Tier 1/4).", false, "$taken/50")
+                                            taken < 250 -> AchievementItem("Lumberjack", "Capture 250 opponent pieces (Tier 2/4).", false, "$taken/250")
+                                            taken < 500 -> AchievementItem("Executioner", "Capture 500 opponent pieces (Tier 3/4).", false, "$taken/500")
+                                            taken < 1000 -> AchievementItem("Terminator", "Capture 1000 opponent pieces (Tier 4/4).", false, "$taken/1000")
+                                            else -> AchievementItem("Terminator", "Captured 1000 opponent pieces (Max Tier).", true, "1000/1000")
+                                        }
+                                    }
+
+                                    // 3. BOT SLAYER TIER (Challenger -> Grandmaster)
+                                    item {
+                                        when {
+                                            !dataManager.achChallenger -> AchievementItem("Challenger", "Defeat the bot on 'Medium' (Tier 1/2).", false, "0/1")
+                                            !dataManager.achGrandmaster -> AchievementItem("Grandmaster", "Defeat the bot on 'Hard' (Tier 2/2).", false, "0/1")
+                                            else -> AchievementItem("Grandmaster", "Defeated the bot on 'Hard' (Max Tier).", true, "1/1")
+                                        }
+                                    }
+
+                                    // 4. STANDALONE ACHIEVEMENTS
+                                    item { AchievementItem("Untouchable", "Win a game losing a maximum of 3 pieces.", dataManager.achUntouchable, if (dataManager.achUntouchable) "1/1" else "0/1") }
+                                    item { AchievementItem("Perfection", "Win a game without losing a single piece.", dataManager.achPerfection, if (dataManager.achPerfection) "1/1" else "0/1") }
+                                    item { AchievementItem("Jailer", "Win by completely trapping your opponent.", dataManager.achJailer, if (dataManager.achJailer) "1/1" else "0/1") }
+                                    item { AchievementItem("Comeback", "Win after being reduced to exactly 3 pieces.", dataManager.achComeback, if (dataManager.achComeback) "1/1" else "0/1") }
                                 }
                             }
                         }
@@ -457,6 +516,7 @@ fun StartScreen(
                 }
             }
         }
+
 
         // --- KOPF-AN-KOPF POPUP ---
         if (selectedOpponent != null) {
@@ -520,5 +580,65 @@ fun StartScreen(
                 )
             }
         }
+    }
+    if (showBotDialog) {
+        Dialog(onDismissRequest = { showBotDialog = false }) {
+            Card(
+                shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xEE3E2723)),
+                modifier = Modifier.border(1.dp, Color(0xFFD4AF37), RoundedCornerShape(16.dp))
+            ) {
+                Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Select Difficulty", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        Button(onClick = { selectedDifficulty = 1 }, colors = ButtonDefaults.buttonColors(containerColor = if (selectedDifficulty == 1) Color(0xFFD4AF37) else Color(0xFF3E2723)), border = BorderStroke(1.dp, Color(0xFFD4AF37))) { Text("Easy", color = if (selectedDifficulty == 1) Color.Black else Color.White) }
+                        Button(onClick = { selectedDifficulty = 2 }, colors = ButtonDefaults.buttonColors(containerColor = if (selectedDifficulty == 2) Color(0xFFD4AF37) else Color(0xFF3E2723)), border = BorderStroke(1.dp, Color(0xFFD4AF37))) { Text("Medium", color = if (selectedDifficulty == 2) Color.Black else Color.White) }
+                        Button(onClick = { selectedDifficulty = 3 }, colors = ButtonDefaults.buttonColors(containerColor = if (selectedDifficulty == 3) Color(0xFFD4AF37) else Color(0xFF3E2723)), border = BorderStroke(1.dp, Color(0xFFD4AF37))) { Text("Hard", color = if (selectedDifficulty == 3) Color.Black else Color.White) }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        TextButton(onClick = { showBotDialog = false }) { Text("Cancel", color = Color.LightGray) }
+                        Button(onClick = { showBotDialog = false; onBotStart(selectedDifficulty) }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4AF37))) { Text("Start Match", color = Color.Black, fontWeight = FontWeight.Bold) }
+                    }
+                }
+            }
+        }
+    }
+
+}
+
+@Composable
+fun AchievementItem(title: String, description: String, isUnlocked: Boolean, progress: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Das Icon-Kreis (Gold wenn unlocked, Grau wenn locked)
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(if (isUnlocked) Color(0x33D4AF37) else Color(0x33AAAAAA))
+                .border(2.dp, if (isUnlocked) Color(0xFFD4AF37) else Color.Gray, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (isUnlocked) Icons.Default.EmojiEvents else Icons.Default.Lock,
+                contentDescription = null,
+                tint = if (isUnlocked) Color(0xFFFFD700) else Color.Gray
+            )
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // Texte
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, color = if (isUnlocked) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(description, color = Color.LightGray, fontSize = 12.sp)
+        }
+
+        // Fortschrittsanzeige (z.B. "25/50")
+        Text(progress, color = if (isUnlocked) Color(0xFFD4AF37) else Color.Gray, fontWeight = FontWeight.Bold)
     }
 }

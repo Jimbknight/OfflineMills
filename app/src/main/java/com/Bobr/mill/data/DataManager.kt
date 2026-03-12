@@ -2,14 +2,36 @@ package com.Bobr.mill.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class DataManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("MillAppPrefs", Context.MODE_PRIVATE)
 
+    // --- NEU: Live-Sender für Jetpack Compose ---
+    private val _playerNameFlow = MutableStateFlow(prefs.getString("PLAYER_NAME", "") ?: "")
+    val playerNameFlow: StateFlow<String> = _playerNameFlow.asStateFlow()
+
+    private val _isGoogleLoginFlow = MutableStateFlow(prefs.getBoolean("IS_GOOGLE_LOGIN", false))
+    val isGoogleLoginFlow: StateFlow<Boolean> = _isGoogleLoginFlow.asStateFlow()
+
+    // --- DEINE ALTEN VARIABLEN (aber jetzt funken sie Updates!) ---
     var playerName: String
         get() = prefs.getString("PLAYER_NAME", "") ?: ""
-        set(value) = prefs.edit().putString("PLAYER_NAME", value).apply()
+        set(value) {
+            prefs.edit().putString("PLAYER_NAME", value).apply()
+            _playerNameFlow.value = value // Sagt Compose: "Neu zeichnen!"
+        }
 
+    var isGoogleLogin: Boolean
+        get() = prefs.getBoolean("IS_GOOGLE_LOGIN", false)
+        set(value) {
+            prefs.edit().putBoolean("IS_GOOGLE_LOGIN", value).apply()
+            _isGoogleLoginFlow.value = value // Sagt Compose: "Schloss verriegeln/öffnen!"
+        }
+
+    // ... hier unten bleiben totalWins, totalLosses usw. GANZ GENAU SO wie sie vorher waren ...
     var totalWins: Int
         get() = prefs.getInt("TOTAL_WINS", 0)
         set(value) = prefs.edit().putInt("TOTAL_WINS", value).apply()
@@ -45,6 +67,37 @@ class DataManager(context: Context) {
             prefs.edit().putString("MATCH_HISTORY_LIST", value.joinToString(";;;")).apply()
         }
 
+    // --- NEU: ACHIEVEMENTS (Automatisch berechnet) ---
+    val achFirstSteps: Boolean get() = totalWins > 0
+    val achMillBuilder: Boolean get() = totalPiecesTaken >= 50
+    val achLumberjack: Boolean get() = totalPiecesTaken >= 250
+
+    // --- NEU: ACHIEVEMENTS (Gespeichert) ---
+    var achChallenger: Boolean
+        get() = prefs.getBoolean("ACH_CHALLENGER", false)
+        set(value) = prefs.edit().putBoolean("ACH_CHALLENGER", value).apply()
+
+    var achGrandmaster: Boolean
+        get() = prefs.getBoolean("ACH_GRANDMASTER", false)
+        set(value) = prefs.edit().putBoolean("ACH_GRANDMASTER", value).apply()
+
+    var achUntouchable: Boolean
+        get() = prefs.getBoolean("ACH_UNTOUCHABLE", false)
+        set(value) = prefs.edit().putBoolean("ACH_UNTOUCHABLE", value).apply()
+    // --- NEU: ERWEITERTE ACHIEVEMENTS ---
+    val achVeteran: Boolean get() = (totalWins + totalLosses) >= 50
+
+    var achPerfection: Boolean
+        get() = prefs.getBoolean("ACH_PERFECTION", false)
+        set(value) = prefs.edit().putBoolean("ACH_PERFECTION", value).apply()
+
+    var achJailer: Boolean
+        get() = prefs.getBoolean("ACH_JAILER", false)
+        set(value) = prefs.edit().putBoolean("ACH_JAILER", value).apply()
+
+    var achComeback: Boolean
+        get() = prefs.getBoolean("ACH_COMEBACK", false)
+        set(value) = prefs.edit().putBoolean("ACH_COMEBACK", value).apply()
     fun getOpponentWins(opponentName: String): Int {
         return prefs.getInt("OPP_WINS_$opponentName", 0)
     }
