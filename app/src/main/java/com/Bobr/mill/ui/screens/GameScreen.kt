@@ -71,7 +71,7 @@ fun GameScreen(
     val woodTextureImg = ImageBitmap.imageResource(id = R.drawable.game_board)
 
     var showConcedeDialog by remember { mutableStateOf(false) }
-
+    var showGameOverDialog by remember { mutableStateOf(false) }
     var previousBoard by remember { mutableStateOf(state.board) }
 
     var moveAnimInfo by remember { mutableStateOf<MoveAnimInfo?>(null) }
@@ -99,6 +99,13 @@ fun GameScreen(
     val topUnplacedImg = if (isBottomPlayerTwo) whitePieceImg else blackPieceImg
     val topCapturedImg = if (isBottomPlayerTwo) blackPieceImg else whitePieceImg
 
+    LaunchedEffect(state.currentPhase) {
+        if (state.currentPhase == Phase.GAME_OVER) {
+            showGameOverDialog = true
+        } else {
+            showGameOverDialog = false
+        }
+    }
     LaunchedEffect(state.board) {
         if (previousBoard != state.board) {
             val removed = mutableListOf<Int>()
@@ -246,7 +253,7 @@ fun GameScreen(
                     val instructionText = if (!isMyTurn && state.currentPhase != Phase.GAME_OVER) {
                         "Waiting for opponent to move..."
                     } else if (state.currentPhase == Phase.GAME_OVER) {
-                        "Match finished."
+                        state.infoMessage
                     } else {
                         if (state.infoMessage.contains("turn", ignoreCase = true)) {
                             when (state.currentPhase) {
@@ -492,6 +499,15 @@ fun GameScreen(
                     ) {
                         Text("Concede", color = Color(0xFFD4AF37), fontWeight = FontWeight.Bold)
                     }
+                } else {
+                    // NEU: Wenn das Spiel vorbei ist, zeige hier einen "Options" Button, um das Popup zurückzuholen
+                    Button(
+                        onClick = { showGameOverDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3E2723)),
+                        border = BorderStroke(1.dp, Color(0xFFD4AF37))
+                    ) {
+                        Text("Match Options", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -529,16 +545,16 @@ fun GameScreen(
             }
         }
 
-        if (state.currentPhase == Phase.GAME_OVER) {
+// NEU: Das Popup wird nur angezeigt, wenn showGameOverDialog true ist
+        if (state.currentPhase == Phase.GAME_OVER && showGameOverDialog) {
             val winner = state.winner
-
-            // NEU: Einheitliche Sieg/Niederlage Logik
             val didIWin = winner == myRole
             val titleText = if (didIWin) "VICTORY!" else "DEFEAT"
+            val reasonText = state.infoMessage
             val subtitleText = if (didIWin) "You outsmarted your opponent." else "Better luck next time."
             val popupColor = if (!didIWin) Color(0xFFFF5252) else Color(0xFFFFD700)
 
-            Dialog(onDismissRequest = {}) {
+            Dialog(onDismissRequest = { showGameOverDialog = false }) { // NEU: Lässt sich per Klick daneben schließen
                 Card(
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFAAAAAA)),
@@ -548,22 +564,11 @@ fun GameScreen(
                         modifier = Modifier.background(Color(0xEE111111)).padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = titleText,
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = popupColor
-                        )
-
+                        Text(text = titleText, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = popupColor)
                         Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = subtitleText,
-                            fontSize = 16.sp,
-                            color = Color.White,
-                            textAlign = TextAlign.Center
-                        )
-
+                        Text(text = reasonText, fontSize = 16.sp, color = Color.White, textAlign = TextAlign.Center)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = subtitleText, fontSize = 16.sp, color = Color.White, textAlign = TextAlign.Center)
                         Spacer(modifier = Modifier.height(32.dp))
 
                         Button(
@@ -572,6 +577,18 @@ fun GameScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4AF37))
                         ) {
                             Text("Play Again", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // NEU: Button, um sich das Brett anzusehen
+                        Button(
+                            onClick = { showGameOverDialog = false },
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3E2723)),
+                            border = BorderStroke(1.dp, Color(0xFFD4AF37))
+                        ) {
+                            Text("View Board", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))

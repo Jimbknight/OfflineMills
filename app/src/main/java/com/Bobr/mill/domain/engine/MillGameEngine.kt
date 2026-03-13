@@ -100,12 +100,12 @@ class MillGameEngine {
         val opponentUnplaced = if (opponent == Player.PLAYER_ONE) state.unplacedPiecesPlayerOne else state.unplacedPiecesPlayerTwo
         val opponentOnBoard = if (opponent == Player.PLAYER_ONE) onBoardP1 else onBoardP2
 
-        // ENDBEDINGUNG 1: Gegner hat weniger als 3 Steine
+// ENDBEDINGUNG 1: Gegner hat weniger als 3 Steine
         if (opponentUnplaced == 0 && opponentOnBoard < 3) {
             return state.copy(
                 board = newBoard, piecesOnBoardPlayerOne = onBoardP1, piecesOnBoardPlayerTwo = onBoardP2,
                 currentPhase = Phase.GAME_OVER,
-                infoMessage = "Game Over! ${if (state.currentTurn == Player.PLAYER_ONE) "White" else "Black"} wins!",
+                infoMessage = "Game Over! ${if (state.currentTurn == Player.PLAYER_ONE) "White" else "Black"} wins\n (Opponent has less than 3 pieces)!",
                 winner = state.currentTurn
             )
         }
