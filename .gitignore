@@ -1,15 +1,42 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+# --- Build-Ordner (Das sind die größten Platzfresser!) ---
+build/
+*/build/
+.gradle/
+.externalNativeBuild/
+.cxx/
+
+# --- Lokale Konfigurationen (Niemals hochladen!) ---
 local.properties
+
+# --- IntelliJ / Android Studio ---
+*.iml
+.idea/caches/
+.idea/libraries/
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/gradle.xml
+.idea/assetWizardSettings.xml
+.idea/dictionaries/
+.idea/navEditor.xml
+.idea/modules.xml
+captures/
+.navigation/
+
+# --- Kompilierte Dateien & App-Pakete ---
+*.apk
+*.aab
+*.ap_
+*.class
+*.dex
+
+# --- Log-Dateien ---
+*.log
+
+# --- Betriebssystem-Dateien ---
+.DS_Store
+Thumbs.db
+
+# --- Sicherheit (Keystores und Firebase/Google Keys) ---
+*.jks
+*.keystore
+google-services.json

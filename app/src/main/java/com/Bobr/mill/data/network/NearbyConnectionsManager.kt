@@ -3,6 +3,7 @@ package com.Bobr.mill.data.network
 import android.content.Context
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.*
+import java.nio.ByteBuffer
 
 data class DiscoveredGame(val endpointId: String, val hostName: String)
 
@@ -10,114 +11,164 @@ class NearbyConnectionsManager(
     private val context: Context,
     private val onConnectionStatusChanged: (Boolean, String) -> Unit,
     private val onMoveReceived: (Int) -> Unit,
-    private val onRoleAssigned: (isPlayerOne: Boolean) -> Unit,
-    private val onGamesDiscovered: (List<DiscoveredGame>) -> Unit
+    private val onRoleAssigned: (Boolean) -> Unit,
+    private val onGamesDiscovered: (List<DiscoveredGame>) -> Unit,
+    private val onOpponentNameReceived: (String) -> Unit // NEU: Sendet den Namen an die MainActivity
 ) {
     private val connectionsClient = Nearby.getConnectionsClient(context)
-    private val SERVICE_ID = "com.Bobr.mill.LOBBY"
+    private val strategy = Strategy.P2P_STAR
+    private val serviceId = "com.Bobr.mill.SERVICE_ID"
 
-    private var connectedEndpointId: String? = null
-    private val discoveredGames = mutableListOf<DiscoveredGame>()
+    private var hostPlaysWhite = true
+    private var isHosting = false
+    private var opponentEndpointId: String? = null
 
-    // Speichert, ob der Host sich für Weiß (Player 1) oder Schwarz (Player 2) entschieden hat
-    private var hostPlaysAsPlayerOne: Boolean = true
+    private val discoveredGamesMap = mutableMapOf<String, String>()
 
-    fun startHosting(hostName: String, hostPlaysAsPlayerOne: Boolean) {
-        this.hostPlaysAsPlayerOne = hostPlaysAsPlayerOne
-        val options = AdvertisingOptions.Builder().setStrategy(Strategy.P2P_POINT_TO_POINT).build()
+    // Merkt sich, ob WIR den Disconnect ausgelöst haben
+    private var isDisconnectingLocally = false
 
-        connectionsClient.startAdvertising(hostName, SERVICE_ID, connectionLifecycleCallback, options)
-            .addOnSuccessListener { onConnectionStatusChanged(false, "Hosting...") }
-            .addOnFailureListener { onConnectionStatusChanged(false, "Fehler beim Hosten.") }
-    }
-
-    fun startDiscovering() {
-        discoveredGames.clear()
-        onGamesDiscovered(emptyList())
-        val options = DiscoveryOptions.Builder().setStrategy(Strategy.P2P_POINT_TO_POINT).build()
-
-        connectionsClient.startDiscovery(SERVICE_ID, endpointDiscoveryCallback, options)
-            .addOnSuccessListener { onConnectionStatusChanged(false, "Suche...") }
-    }
-
-    // Brich das Suchen oder Hosten ab
-    fun cancel() {
-        connectionsClient.stopAdvertising()
-        connectionsClient.stopDiscovery()
-        discoveredGames.clear()
-        onGamesDiscovered(emptyList())
-        onConnectionStatusChanged(false, "")
-    }
-
-    private val endpointDiscoveryCallback = object : EndpointDiscoveryCallback() {
-        override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
-            discoveredGames.add(DiscoveredGame(endpointId, info.endpointName))
-            onGamesDiscovered(discoveredGames.toList()) // Aktualisiert die Liste im UI
+    // --- 1. DATEN EMPFANGEN ---
+    private val payloadCallback = object : PayloadCallback() {
+        override fun onPayloadReceived(endpointId: String, payload: Payload) {
+            payload.asBytes()?.let { bytes ->
+                val receivedData = ByteBuffer.wrap(bytes).int
+                when (receivedData) {
+                    88 -> onRoleAssigned(false)
+                    99 -> onRoleAssigned(true)
+                    else -> onMoveReceived(receivedData)
+                }
+            }
         }
-        override fun onEndpointLost(endpointId: String) {
-            discoveredGames.removeAll { it.endpointId == endpointId }
-            onGamesDiscovered(discoveredGames.toList())
-        }
+        override fun onPayloadTransferUpdate(p0: String, p1: PayloadTransferUpdate) {}
     }
 
-    fun joinGame(endpointId: String, playerName: String) {
-        connectionsClient.requestConnection(playerName, endpointId, connectionLifecycleCallback)
-        onConnectionStatusChanged(false, "Verbinde...")
-    }
-
+    // --- 2. VERBINDUNGSAUFBAU ---
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, info: ConnectionInfo) {
+            // NEU: Sobald der Handshake beginnt, schicken wir den echten Namen des Gegners raus
+            onOpponentNameReceived(info.endpointName)
+
             connectionsClient.acceptConnection(endpointId, payloadCallback)
         }
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
             if (result.status.isSuccess) {
-                connectedEndpointId = endpointId
+                opponentEndpointId = endpointId
+                onConnectionStatusChanged(true, "Connected!")
+
                 connectionsClient.stopAdvertising()
                 connectionsClient.stopDiscovery()
 
-                onConnectionStatusChanged(true, "Verbunden!")
-
-                // Host teilt dem Joiner mit, wer wer ist!
-                val roleMessage = if (hostPlaysAsPlayerOne) "ROLE:PLAYER_TWO" else "ROLE:PLAYER_ONE"
-                connectionsClient.sendPayload(endpointId, Payload.fromBytes(roleMessage.toByteArray()))
-
-                // Host setzt seine eigene Rolle
-                onRoleAssigned(hostPlaysAsPlayerOne)
+                if (isHosting) {
+                    onRoleAssigned(hostPlaysWhite)
+                    val clientColorCode = if (hostPlaysWhite) 88 else 99
+                    sendMove(clientColorCode)
+                }
             } else {
-                onConnectionStatusChanged(false, "Verbindung fehlgeschlagen.")
+                discoveredGamesMap.remove(endpointId)
+                updateDiscoveredGamesList()
+                onConnectionStatusChanged(false, "Game no longer available.")
             }
         }
 
         override fun onDisconnected(endpointId: String) {
-            connectedEndpointId = null
-            // Hier fangen wir den Verbindungsabbruch ab!
-            onConnectionStatusChanged(false, "Verbindung verloren!")
-        }
-    }
-
-    private val payloadCallback = object : PayloadCallback() {
-        override fun onPayloadReceived(endpointId: String, payload: Payload) {
-            val message = payload.asBytes()?.let { String(it) } ?: return
-
-            if (message.startsWith("ROLE:")) {
-                val isPlayerOne = message.split(":")[1] == "PLAYER_ONE"
-                onRoleAssigned(isPlayerOne)
-            } else {
-                message.toIntOrNull()?.let { onMoveReceived(it) }
+            opponentEndpointId = null
+            // Nur meckern, wenn der Gegner wirklich abgehauen ist!
+            if (!isDisconnectingLocally) {
+                onConnectionStatusChanged(false, "Opponent disconnected.")
             }
+            isDisconnectingLocally = false // Wieder zurücksetzen
         }
-        override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {}
     }
 
-    fun sendMove(pointIndex: Int) {
-        connectedEndpointId?.let {
-            connectionsClient.sendPayload(it, Payload.fromBytes(pointIndex.toString().toByteArray()))
+    // --- 3. SPIEL HOSTEN ---
+    fun startHosting(userName: String, isWhite: Boolean) {
+        isHosting = true
+        hostPlaysWhite = isWhite
+        onConnectionStatusChanged(false, "Hosting game... Waiting for players.")
+
+        val options = AdvertisingOptions.Builder().setStrategy(strategy).build()
+        connectionsClient.startAdvertising(
+            userName, serviceId, connectionLifecycleCallback, options
+        ).addOnFailureListener {
+            onConnectionStatusChanged(false, "Failed to start hosting.")
         }
+    }
+
+    // --- 4. SPIEL SUCHEN ---
+    private val endpointDiscoveryCallback = object : EndpointDiscoveryCallback() {
+        override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
+            discoveredGamesMap[endpointId] = info.endpointName
+            updateDiscoveredGamesList()
+        }
+
+        override fun onEndpointLost(endpointId: String) {
+            discoveredGamesMap.remove(endpointId)
+            updateDiscoveredGamesList()
+        }
+    }
+
+    fun startDiscovering() {
+        isHosting = false
+        discoveredGamesMap.clear()
+        updateDiscoveredGamesList()
+        onConnectionStatusChanged(false, "Discovering games...")
+
+        connectionsClient.stopDiscovery()
+
+        val options = DiscoveryOptions.Builder().setStrategy(strategy).build()
+        connectionsClient.startDiscovery(
+            serviceId, endpointDiscoveryCallback, options
+        ).addOnFailureListener {
+            onConnectionStatusChanged(false, "Failed to discover games.")
+        }
+    }
+
+    // --- 5. SPIEL BEITRETEN ---
+    fun joinGame(endpointId: String, userName: String) {
+        connectionsClient.stopDiscovery()
+        onConnectionStatusChanged(false, "Connecting to host...")
+
+        connectionsClient.requestConnection(
+            userName, endpointId, connectionLifecycleCallback
+        ).addOnFailureListener {
+            discoveredGamesMap.remove(endpointId)
+            updateDiscoveredGamesList()
+            onConnectionStatusChanged(false, "Game is no longer available.")
+        }
+    }
+
+    // --- 6. ZUG / CODE SENDEN ---
+    fun sendMove(moveIndex: Int) {
+        opponentEndpointId?.let { endpointId ->
+            val bytes = ByteBuffer.allocate(4).putInt(moveIndex).array()
+            connectionsClient.sendPayload(endpointId, Payload.fromBytes(bytes))
+        }
+    }
+
+    private fun updateDiscoveredGamesList() {
+        val list = discoveredGamesMap.map { DiscoveredGame(it.key, it.value) }
+        onGamesDiscovered(list)
+    }
+
+    fun cancel() {
+        connectionsClient.stopAdvertising()
+        connectionsClient.stopDiscovery()
+        // Alte Lobby-Liste knallhart leeren!
+        discoveredGamesMap.clear()
+        updateDiscoveredGamesList()
+        onConnectionStatusChanged(false, "")
     }
 
     fun disconnect() {
+        isDisconnectingLocally = true // Wir sagen der App: WIR gehen jetzt!
         connectionsClient.stopAllEndpoints()
-        connectedEndpointId = null
+        opponentEndpointId = null
+        isHosting = false
+        // Alte Lobby-Liste auch beim Disconnect leeren!
+        discoveredGamesMap.clear()
+        updateDiscoveredGamesList()
+        onConnectionStatusChanged(false, "")
     }
 }
