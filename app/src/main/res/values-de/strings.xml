@@ -1,0 +1,102 @@
+<resources>
+    <string name="btn_host_game">Lokales Spiel hosten</string>
+    <string name="btn_join_game">Spiel beitreten</string>
+    <string name="btn_play_bot">Gegen Bot spielen</string>
+    <string name="btn_stats">Statistiken &amp; Trophäen</string> <string name="guest">Gast</string>
+    <string name="close">Schließen</string>
+    <string name="cancel">Abbrechen</string>
+
+    <string name="settings_title">Einstellungen</string>
+    <string name="settings_enter_name">Spielername eingeben</string>
+    <string name="settings_google_name">Google Play Name</string>
+    <string name="settings_music">Musiklautstärke:</string>
+    <string name="settings_sfx">Soundeffekte (SFX):</string>
+
+    <string name="join_title">Verfügbare Spiele</string>
+    <string name="join_searching">Suche nach Spielen…</string>
+    <string name="join_btn">BEITRETEN</string>
+
+    <string name="bot_title">Schwierigkeit wählen</string>
+    <string name="bot_easy">Leicht</string>
+    <string name="bot_medium">Mittel</string>
+    <string name="bot_hard">Schwer</string>
+    <string name="bot_start">Spiel starten</string>
+    <string name="stats_profile_title">Spielerprofil</string>
+    <string name="stats_tab_stats">Statistiken</string>
+    <string name="stats_tab_achievements">Trophäen</string>
+    <string name="stats_wins">Siege</string>
+    <string name="stats_losses">Niederlagen</string>
+    <string name="stats_winrate">Siegquote</string>
+    <string name="stats_pieces_taken">Steine geschlagen</string>
+    <string name="stats_pieces_lost">Steine verloren</string>
+    <string name="stats_recent_matches">Letzte Spiele</string>
+    <string name="stats_no_matches">Noch keine Spiele gespielt.</string>
+    <string name="stats_won">SIEG</string>
+    <string name="stats_lost">NIEDERLAGE</string>
+
+    <string name="ach_cat_experience">Erfahrung</string>
+    <string name="ach_cat_destroyer">Zerstörer</string>
+    <string name="ach_cat_tactician">Taktiker</string>
+    <string name="ach_cat_bot_slayer">Bot-Bezwinger</string>
+    <string name="ach_cat_specials">Besondere Erfolge</string>
+    <string name="stats_vs">vs. %1$s</string>
+    <string name="stats_winrate_value">Siegquote: %1$d%%</string>
+    <string name="cd_background">Hintergrund</string>
+    <string name="cd_logo">Spiellogo</string>
+    <string name="nearby_hosting">Hoste Spiel…</string>
+    <string name="nearby_discovering">Suche nach Spielen…</string>
+    <string name="nearby_connected">Verbunden!</string>
+    <string name="nearby_disconnected">Verbindung getrennt</string>
+    <string name="nearby_error">Verbindungsfehler</string>
+    <string name="nearby_timeout">Zeitüberschreitung</string>
+    <string name="game_over_win_pieces">Sieg! Dein Gegner hat weniger als 3 Steine.</string>
+    <string name="game_over_loss_pieces">Niederlage! Du hast weniger als 3 Steine.</string>
+    <string name="game_over_win_trapped">Sieg! Dein Gegner ist komplett blockiert.</string>
+    <string name="game_over_loss_trapped">Niederlage! Du bist komplett blockiert.</string>
+    <string name="game_over_win_conceded">Sieg! Dein Gegner hat aufgegeben.</string>
+    <string name="game_over_loss_conceded">Niederlage! Du hast aufgegeben.</string>
+
+    <string name="game_over_title_win">SIEG!</string>
+    <string name="game_over_title_loss">NIEDERLAGE</string>
+    <string name="game_over_sub_win">Du hast deinen Gegner überlistet.</string>
+    <string name="game_over_sub_loss">Viel Glück beim nächsten Mal.</string>
+
+    <string name="role_white">Du spielst Weiß</string>
+    <string name="role_black">Du spielst Schwarz</string>
+    <string name="role_waiting">Warte auf Zuweisung…</string>
+
+    <string name="turn_game_over">SPIELENDE</string>
+    <string name="turn_yours">DU BIST DRAN</string>
+    <string name="turn_opponent">GEGNER IST DRAN</string>
+
+    <string name="instr_waiting_move">Warte auf den Zug des Gegners…</string>
+    <string name="instr_place">Setze einen Stein auf das Brett.</string>
+    <string name="instr_move">Wähle einen Stein zum Ziehen.</string>
+    <string name="instr_fly">Sprungphase! Springe auf ein freies Feld.</string>
+    <string name="instr_remove">Mühle! Entferne einen gegnerischen Stein.</string>
+    <string name="instr_default">Mach deinen Zug.</string>
+    <string name="instr_left_to_place">\n(%1$d verbleibend)</string>
+
+    <string name="btn_get_hint">💡 Tipp holen</string>
+    <string name="btn_concede">Aufgeben</string>
+    <string name="btn_match_options">Spiel-Optionen</string>
+    <string name="btn_play_again">Nochmal spielen</string>
+    <string name="btn_view_board">Brett ansehen</string>
+    <string name="btn_quit">Zurück ins Hauptmenü</string>
+
+    <string name="concede_title">Spiel aufgeben?</string>
+    <string name="concede_desc">Bist du sicher, dass du aufgeben willst? Das zählt als Sieg für den Gegner.</string>
+    <string name="concede_confirm">Ja, aufgeben</string>
+
+    <string name="rps_tie_title">Unentschieden!</string>
+    <string name="rps_tie_desc">Beide Spieler haben das Gleiche gewählt.</string>
+    <string name="rps_win_title">Du hast gewonnen!</string>
+    <string name="rps_choose_color">Wähle deine Farbe:</string>
+    <string name="color_white">Weiß</string>
+    <string name="color_black">Schwarz</string>
+    <string name="rps_white_begins">Weiß beginnt</string>
+    <string name="rps_loss_title">Gegner gewinnt!</string>
+    <string name="rps_waiting_color">Warte auf Farbwahl des Gegners…</string>
+    <string name="rps_title">Schere, Stein, Papier!</string>
+    <string name="rps_waiting_opponent">Warte auf den Gegner…</string>
+</resources>

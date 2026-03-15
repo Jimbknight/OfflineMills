@@ -1,20 +1,16 @@
-package com.Bobr.mill
+package com.Bobr.millbybobr
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
-import com.Bobr.mill.domain.engine.BotEngine
-import com.Bobr.mill.domain.engine.MillGameEngine
-import com.Bobr.mill.ui.viewmodels.MillViewModel
+import com.Bobr.millbybobr.domain.engine.BotEngine
+import com.Bobr.millbybobr.domain.engine.MillGameEngine
+import com.Bobr.millbybobr.ui.viewmodels.MillViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
-import org.junit.Test
-import kotlin.collections.get
 
 class MillViewModelTest {
 

@@ -1,3 +1,107 @@
 <resources>
     <string name="app_name">Mill by Bobr</string>
+    <string name="play_games_app_id" translatable="false">344619457443</string>
+    <string name="btn_host_game">Host Game nearby</string>
+    <string name="btn_join_game">Join Game</string>
+    <string name="btn_play_bot">Play vs Bot</string>
+    <string name="btn_stats">Stats and Achievements</string>
+
+    <string name="guest">Guest</string>
+    <string name="close">Close</string>
+    <string name="cancel">Cancel</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_enter_name">Enter Player Name</string>
+    <string name="settings_google_name">Google Play Name</string>
+    <string name="settings_music">Music Volume:</string>
+    <string name="settings_sfx">Sound Effects (SFX):</string>
+
+    <string name="join_title">Available Games</string>
+    <string name="join_searching">Searching for hosts...</string>
+    <string name="join_btn">JOIN</string>
+
+    <string name="bot_title">Select Difficulty</string>
+    <string name="bot_easy">Easy</string>
+    <string name="bot_medium">Medium</string>
+    <string name="bot_hard">Hard</string>
+    <string name="bot_start">Start Match</string>
+
+    <string name="stats_profile_title">Player Profile</string>
+    <string name="stats_tab_stats">Stats</string>
+    <string name="stats_tab_achievements">Achievements</string>
+    <string name="stats_wins">Wins</string>
+    <string name="stats_losses">Losses</string>
+    <string name="stats_winrate">Winrate</string>
+    <string name="stats_pieces_taken">Pieces Taken</string>
+    <string name="stats_pieces_lost">Pieces Lost</string>
+    <string name="stats_recent_matches">Recent Matches</string>
+    <string name="stats_no_matches">No matches played yet.</string>
+    <string name="stats_won">WON</string>
+    <string name="stats_lost">LOST</string>
+
+    <string name="ach_cat_experience">Experience</string>
+    <string name="ach_cat_destroyer">Destroyer</string>
+    <string name="ach_cat_tactician">Tactician</string>
+    <string name="ach_cat_bot_slayer">Bot Slayer</string>
+    <string name="ach_cat_specials">Special Achievements</string>
+    <string name="stats_vs">vs. %1$s</string>
+    <string name="stats_winrate_value">Winrate: %1$d%%</string>
+    <string name="cd_background">Background</string>
+    <string name="cd_logo">Game Logo</string>
+    <string name="nearby_hosting">Hosting game…</string>
+    <string name="nearby_discovering">Searching for hosts…</string>
+    <string name="nearby_connected">Connected!</string>
+    <string name="nearby_disconnected">Connection lost</string>
+    <string name="nearby_error">Connection error</string>
+    <string name="nearby_timeout">Connection timeout</string>
+    <string name="game_over_win_pieces">Victory! Opponent has less than 3 pieces.</string>
+    <string name="game_over_loss_pieces">Defeat! You have less than 3 pieces.</string>
+    <string name="game_over_win_trapped">Victory! Opponent is completely trapped.</string>
+    <string name="game_over_loss_trapped">Defeat! You are completely trapped.</string>
+    <string name="game_over_win_conceded">Victory! Opponent conceded.</string>
+    <string name="game_over_loss_conceded">Defeat! You conceded.</string>
+
+    <string name="game_over_title_win">VICTORY!</string>
+    <string name="game_over_title_loss">DEFEAT</string>
+    <string name="game_over_sub_win">You outsmarted your opponent.</string>
+    <string name="game_over_sub_loss">Better luck next time.</string>
+
+    <string name="role_white">You are playing White</string>
+    <string name="role_black">You are playing Black</string>
+    <string name="role_waiting">Waiting for assignment…</string>
+
+    <string name="turn_game_over">GAME OVER</string>
+    <string name="turn_yours">YOUR TURN</string>
+    <string name="turn_opponent">OPPONENT\'S TURN</string>
+
+    <string name="instr_waiting_move">Waiting for opponent to move…</string>
+    <string name="instr_place">Place a piece on the board.</string>
+    <string name="instr_move">Select a piece to move.</string>
+    <string name="instr_fly">Flying Phase! Move to any empty spot.</string>
+    <string name="instr_remove">Mill! Remove an opponent\'s piece.</string>
+    <string name="instr_default">Make your move.</string>
+    <string name="instr_left_to_place">\n(%1$d left to place)</string>
+
+    <string name="btn_get_hint">💡 Get Hint</string>
+    <string name="btn_concede">Concede</string>
+    <string name="btn_match_options">Match Options</string>
+    <string name="btn_play_again">Play Again</string>
+    <string name="btn_view_board">View Board</string>
+    <string name="btn_quit">Quit to Main Menu</string>
+
+    <string name="concede_title">Concede Match?</string>
+    <string name="concede_desc">Are you sure you want to give up? This will count as a win for your opponent.</string>
+    <string name="concede_confirm">Yes, Concede</string>
+
+    <string name="rps_tie_title">It\'s a Tie!</string>
+    <string name="rps_tie_desc">Both players chose the same.</string>
+    <string name="rps_win_title">You Won!</string>
+    <string name="rps_choose_color">Choose your color:</string>
+    <string name="color_white">White</string>
+    <string name="color_black">Black</string>
+    <string name="rps_white_begins">White begins</string>
+    <string name="rps_loss_title">Opponent Won!</string>
+    <string name="rps_waiting_color">Waiting for opponent to choose color…</string>
+    <string name="rps_title">Rock, Paper, Scissors!</string>
+    <string name="rps_waiting_opponent">Waiting for opponent…</string>
 </resources>

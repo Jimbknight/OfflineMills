@@ -1,8 +1,8 @@
-package com.Bobr.mill.domain.engine
+package com.Bobr.millbybobr.domain.engine
 
-import com.Bobr.mill.domain.models.GameState
-import com.Bobr.mill.domain.models.Phase
-import com.Bobr.mill.domain.models.Player
+import com.Bobr.millbybobr.domain.models.GameState
+import com.Bobr.millbybobr.domain.models.Phase
+import com.Bobr.millbybobr.domain.models.Player
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
